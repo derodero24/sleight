@@ -9,7 +9,9 @@ enum SingleInstance {
     /// Sent by a duplicate launch so the copy already running can show itself.
     static let showSettings = Notification.Name("dev.sleight.Sleight.showSettings")
 
-    static func claim() -> Bool {
+    /// Diagnostics should not disturb a running copy: they exit immediately, and
+    /// popping the user's settings window open is not what they asked for.
+    static func claim(announce: Bool = true) -> Bool {
         guard let identifier = Bundle.main.bundleIdentifier else {
             // Running as a loose binary rather than a bundle, so there is nothing
             // reliable to match on. Let it through.
@@ -24,9 +26,11 @@ enum SingleInstance {
             // Opening an app that is already running should show it, not do
             // nothing. Silence here reads as a failed launch, or worse as the old
             // version having stayed put.
-            Log.warn("already running (pid \(others[0].processIdentifier)); showing its settings")
-            DistributedNotificationCenter.default().postNotificationName(
-                showSettings, object: nil, userInfo: nil, deliverImmediately: true)
+            Log.warn("already running (pid \(others[0].processIdentifier))")
+            if announce {
+                DistributedNotificationCenter.default().postNotificationName(
+                    showSettings, object: nil, userInfo: nil, deliverImmediately: true)
+            }
             return false
         }
         return true

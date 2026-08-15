@@ -131,18 +131,15 @@ enum Log {
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
 
+        // Trimmed only here, at open. Doing it per write meant a second launch -
+        // which logs "already running" before exiting - could truncate the log of
+        // the instance actually doing the work.
         let fd = open(url.path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
-        return fd >= 0 ? fd : nil
-    }()
-
-    /// Keeps the file bounded during a session, not just at launch. Verbose mode
-    /// writes several lines per keystroke, so a check that only ran once would let
-    /// a long-lived menu bar process grow the log without limit.
-    private static func trimIfHuge(_ fd: Int32) {
+        guard fd >= 0 else { return nil }
         var info = stat()
-        guard fstat(fd, &info) == 0, info.st_size > sizeLimit else { return }
-        ftruncate(fd, 0)
-    }
+        if fstat(fd, &info) == 0, info.st_size > sizeLimit { ftruncate(fd, 0) }
+        return fd
+    }()
 
     private static let formatter: DateFormatter = {
         let f = DateFormatter()
@@ -150,22 +147,20 @@ enum Log {
         return f
     }()
 
-    /// Silences the log. The self-test deliberately builds broken configs, and
-    /// their warnings were landing in the file users are told to read for bug
-    /// reports, where they look like real faults.
+    /// Set by --selftest, which builds broken configs on purpose.
     static var isQuiet = false
 
     private static func emit(_ level: String, _ message: String) {
         guard !isQuiet else { return }
         let line = "[\(formatter.string(from: Date()))] \(level) \(message)\n"
-        FileHandle.standardError.write(Data(line.utf8))
 
-        guard let fd = descriptor else { return }
-        trimIfHuge(fd)
-        // write(2) rather than FileHandle.write, which raises an uncatchable
-        // exception when the disk is full. Losing a log line is not worth a crash.
-        _ = line.withCString { pointer in
-            Darwin.write(fd, pointer, strlen(pointer))
+        // write(2) throughout, including stderr. FileHandle.write raises an
+        // exception Swift cannot catch when a write fails, so a closed pipe or a
+        // full disk would take the process down and the keyboard with it.
+        line.withCString { pointer in
+            let length = strlen(pointer)
+            _ = Darwin.write(STDERR_FILENO, pointer, length)
+            if let fd = descriptor { _ = Darwin.write(fd, pointer, length) }
         }
     }
 

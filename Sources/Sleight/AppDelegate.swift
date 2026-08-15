@@ -27,7 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        guard SingleInstance.claim() else {
+        let isDiagnostic = args.contains("--dump-menu") || args.contains("--test-kill-tap")
+        guard SingleInstance.claim(announce: !isDiagnostic) else {
             // Nothing to bring forward: an accessory app has no window, and its
             // menu bar item is already sitting there.
             NSApp.terminate(nil)
@@ -96,13 +97,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private var retries = 0
+
     @discardableResult
     private func start(_ controller: EventTapController) -> Bool {
         let started = controller.start()
         if started {
             Log.info("remapping active")
+            retries = 0
         } else {
-            Log.warn("could not create the event tap; will keep trying")
+            // Once each, not once a second. This state can persist - a stale TCC
+            // entry says the permission is granted while the tap still cannot be
+            // created - and a per-tick warning filled the log with tens of
+            // thousands of identical lines a day.
+            retries += 1
+            if retries == 1 || retries == 30 {
+                Log.warn("permission is granted but the tap will not start"
+                    + (retries == 1 ? "; retrying" : "; still retrying quietly"))
+            }
         }
         statusItem?.refresh()
         return started
