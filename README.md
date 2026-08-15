@@ -222,7 +222,18 @@ Sleight is for the common cases where you do not.
 Early, but usable. The state machine and the keep-alive logic are covered by
 `--selftest`.
 
-Not yet signed with a Developer ID, so a build has to be trusted manually.
+### Before this can be distributed
+
+Builds are signed with a self-signed certificate, which is fine locally and
+useless anywhere else: Gatekeeper will refuse it on another Mac, and it cannot be
+notarized. Moving to a Developer ID is the blocker for releasing anything, and
+Launch Services requires one regardless for `CGEventTap` with Input Monitoring.
+
+`Scripts/install.sh` already takes a `SIGN_ID`, so the mechanism is in place. What
+is left is the Apple Developer Program membership, notarization, and enabling the
+hardened runtime. Note that changing the signing identity changes the designated
+requirement, so Accessibility permission has to be granted once more after the
+switch.
 
 ## Prior art
 
