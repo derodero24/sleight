@@ -16,9 +16,9 @@ enum SelfTest {
 
     static func run() -> Int32 {
         let config = Config(bindings: [
-            Binding(keyCode: KeyCode.kana, tapKeyCode: KeyCode.kana, hold: .hyper),
-            Binding(keyCode: KeyCode.eisu, tapKeyCode: KeyCode.eisu, hold: .control),
-            Binding(keyCode: KeyCode.capsLock, tapKeyCode: nil, hold: .control),
+            KeyBinding(keyCode: KeyCode.kana, tapKeyCode: KeyCode.kana, hold: .hyper),
+            KeyBinding(keyCode: KeyCode.eisu, tapKeyCode: KeyCode.eisu, hold: .control),
+            KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: nil, hold: .control),
         ])
 
         tapEmitsTheTapKey(config)
@@ -30,6 +30,7 @@ enum SelfTest {
         resetClearsStuckModifiers(config)
         modifierKeyTapEmitsItsTapKey()
         modifierKeyHoldActsAsModifier()
+        pausingPassesEverythingThrough(config)
 
         if failures == 0 {
             print("\nall checks passed")
@@ -104,7 +105,7 @@ enum SelfTest {
     /// they get their own coverage.
     private static func modifierKeyTapEmitsItsTapKey() {
         let h = Harness(Config(bindings: [
-            Binding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
+            KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
         ]))
         expect(h.modifierDown(KeyCode.capsLock) == .swallowed, "Caps Lock press is withheld")
         expect(h.modifierUp(KeyCode.capsLock) == .swallowed, "Caps Lock release is withheld")
@@ -113,7 +114,7 @@ enum SelfTest {
 
     private static func modifierKeyHoldActsAsModifier() {
         let h = Harness(Config(bindings: [
-            Binding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
+            KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
         ]))
         _ = h.modifierDown(KeyCode.capsLock)
         _ = h.keyDown(0x00)  // 'a'
@@ -121,6 +122,24 @@ enum SelfTest {
         _ = h.keyUp(0x00)
         _ = h.modifierUp(KeyCode.capsLock)
         expect(h.synthesized.isEmpty, "Caps Lock used as a modifier emits no Escape")
+    }
+
+    /// What the Pause menu item does. Also covers the case that would be worst to
+    /// get wrong: pausing mid-press must not strand the key as a held modifier.
+    private static func pausingPassesEverythingThrough(_ config: Config) {
+        let h = Harness(config)
+        _ = h.keyDown(KeyCode.kana)  // armed, awaiting a decision
+        h.engine.isPaused = true
+
+        expect(h.keyDown(KeyCode.kana) == .passed, "paused, a bound key reaches the app")
+        expect(h.keyUp(KeyCode.kana) == .passed, "paused, its release reaches the app too")
+        expect(h.synthesized.isEmpty, "paused, no tap key is emitted")
+        expect(h.lastFlags.isEmpty, "pausing mid-press does not strand a modifier")
+
+        h.engine.isPaused = false
+        _ = h.keyDown(KeyCode.kana)
+        _ = h.keyUp(KeyCode.kana)
+        expect(h.synthesized == [KeyCode.kana], "resuming restores remapping")
     }
 
     // MARK: - Harness

@@ -23,21 +23,21 @@ enum KeyboardLayout: String {
     /// and does nothing useful as shipped. JIS additionally gets the two keys
     /// either side of the space bar, which sit under your thumbs doing nothing at
     /// all unless you use a Japanese input method.
-    var defaultBindings: [Binding] {
-        let capsLock = Binding(
+    var defaultBindings: [KeyBinding] {
+        let capsLock = KeyBinding(
             keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
 
         switch self {
         case .ansi, .iso:
             return [
                 capsLock,
-                Binding(keyCode: KeyCode.rightOption, tapKeyCode: nil, hold: .hyper),
+                KeyBinding(keyCode: KeyCode.rightOption, tapKeyCode: nil, hold: .hyper),
             ]
         case .jis:
             return [
                 capsLock,
-                Binding(keyCode: KeyCode.kana, tapKeyCode: KeyCode.kana, hold: .hyper),
-                Binding(keyCode: KeyCode.eisu, tapKeyCode: KeyCode.eisu, hold: .control),
+                KeyBinding(keyCode: KeyCode.kana, tapKeyCode: KeyCode.kana, hold: .hyper),
+                KeyBinding(keyCode: KeyCode.eisu, tapKeyCode: KeyCode.eisu, hold: .control),
             ]
         }
     }

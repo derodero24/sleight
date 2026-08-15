@@ -1,7 +1,7 @@
 import Foundation
 
 /// One physical key given two jobs.
-struct Binding: Codable {
+struct KeyBinding: Codable {
     /// The key being reassigned, e.g. 0x39 for Caps Lock. Use `--sniff` to find it.
     var keyCode: Int64
     /// What a quick press emits. Omit to make the key hold-only.
@@ -9,15 +9,19 @@ struct Binding: Codable {
     /// What holding it turns the key into. Omit to make the key tap-only.
     var hold: HoldBehavior?
 
+    /// Only the halves that are actually configured, so a hold-only key does not
+    /// advertise a tap that does nothing.
     var label: String {
-        let tap = tapKeyCode.map(KeyCode.describe) ?? "-"
-        let hold = self.hold?.rawValue ?? "-"
-        return "\(KeyCode.describe(keyCode)): tap -> \(tap) / hold -> \(hold)"
+        var parts: [String] = []
+        if let tapKeyCode { parts.append("tap -> \(KeyCode.describe(tapKeyCode))") }
+        if let hold { parts.append("hold -> \(hold.rawValue)") }
+        if parts.isEmpty { parts.append("nothing bound") }
+        return "\(KeyCode.describe(keyCode)): \(parts.joined(separator: ", "))"
     }
 }
 
 struct Config: Codable {
-    var bindings: [Binding]
+    var bindings: [KeyBinding]
 
     /// Chosen from the attached keyboard so that a first run does something
     /// useful rather than nothing.
@@ -43,16 +47,20 @@ struct Config: Codable {
         }
     }
 
-    func writeIfAbsent() {
+    func write() throws {
         let url = Config.url
-        guard !FileManager.default.fileExists(atPath: url.path) else { return }
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(self).write(to: url)
+    }
+
+    func writeIfAbsent() {
+        guard !FileManager.default.fileExists(atPath: Config.url.path) else { return }
         do {
-            try FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(self).write(to: url)
-            Log.info("wrote starter config to \(url.path)")
+            try write()
+            Log.info("wrote starter config to \(Config.url.path)")
         } catch {
             Log.warn("could not write config: \(error)")
         }

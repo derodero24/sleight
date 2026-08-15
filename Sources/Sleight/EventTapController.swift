@@ -11,12 +11,23 @@ import Foundation
 /// the single most common complaint filed against tools in this category, so the
 /// recovery paths here are load-bearing, not defensive padding.
 final class EventTapController {
-    private let engine: TapHoldEngine
+    private var engine: TapHoldEngine
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var watchdog: Timer?
 
     private(set) var reArmCount = 0
+
+    /// Events pass through untouched while paused. The tap stays installed so
+    /// that resuming is instant and does not re-prompt for permission.
+    var isPaused: Bool {
+        get { engine.isPaused }
+        set { engine.isPaused = newValue }
+    }
+
+    /// Every key event, reported before the engine sees it. Drives the key code
+    /// window, which is how anyone finds the code for a key worth binding.
+    var keyObserver: ((Int64, CGEventType) -> Void)?
 
     /// The sniffer runs the same tap machinery in listen-only mode so that what it
     /// reports is exactly what the engine would see.
@@ -25,6 +36,14 @@ final class EventTapController {
     init(engine: TapHoldEngine, sniffMode: Bool = false) {
         self.engine = engine
         self.sniffMode = sniffMode
+    }
+
+    /// Swaps in a rebuilt engine after the config changes on disk. Pause state is
+    /// a property of the session, not of the config, so it survives the swap.
+    func reload(with engine: TapHoldEngine) {
+        engine.isPaused = self.engine.isPaused
+        self.engine.reset()
+        self.engine = engine
     }
 
     // MARK: - Lifecycle
@@ -88,6 +107,10 @@ final class EventTapController {
             Log.warn("tap disabled by \(reason) - re-arming")
             reArm()
             return nil
+        }
+
+        if type == .keyDown || type == .flagsChanged {
+            keyObserver?(event.getIntegerValueField(.keyboardEventKeycode), type)
         }
 
         if sniffMode {

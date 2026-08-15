@@ -90,7 +90,7 @@ extension CGEventFlags {
 }
 
 /// What the `hold` half of a key can turn into.
-enum HoldBehavior: String, Codable {
+enum HoldBehavior: String, Codable, CaseIterable {
     case control
     case option
     case command
@@ -105,6 +105,17 @@ enum HoldBehavior: String, Codable {
         case .command: return .maskCommand
         case .shift: return .maskShift
         case .hyper: return [.maskControl, .maskAlternate, .maskCommand, .maskShift]
+        }
+    }
+
+    /// Shown in the settings picker, with the symbol people actually recognise.
+    var title: String {
+        switch self {
+        case .control: return "Control ⌃"
+        case .option: return "Option ⌥"
+        case .command: return "Command ⌘"
+        case .shift: return "Shift ⇧"
+        case .hyper: return "Hyper ⌃⌥⇧⌘"
         }
     }
 }

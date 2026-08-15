@@ -81,6 +81,23 @@ Modifier keys work as binding targets too. They arrive as `flagsChanged` rather
 than `keyDown`/`keyUp`, and left and right share the public modifier masks, so
 Sleight reads the device-dependent bits to tell which physical key moved.
 
+## Menu bar
+
+Sleight runs as an accessory app: a menu bar item, no Dock icon. The menu lists
+the active keys and offers Settings, Pause, and Open at Login.
+
+Settings is one list. Each row is a key, what a tap sends, and what a hold turns
+it into. **To set a key you click the field and press it** - no key codes to look
+up. Changes take effect as you make them, so there is no Save button.
+
+Recording reads from the event tap rather than from the view. That is what makes
+it possible to bind Caps Lock and the modifiers at all, since those never produce
+a key press a view could receive. The engine pauses while a field is armed, so
+capturing a key does not trigger whatever it is currently bound to.
+
+`--no-menu` runs it headless instead, which is useful over SSH or under a process
+supervisor.
+
 ## Build
 
 ```
@@ -99,13 +116,15 @@ Launch Services requires one for `CGEventTap` with Input Monitoring.
 Sleight --selftest   # state machine checks, no permissions required
 Sleight --sniff      # print the key code of every key you press
 Sleight --verbose    # log every tap/hold decision
+Sleight --no-menu    # run without the menu bar item
 Sleight              # run
 ```
 
-Run `--sniff` first if you are binding something unusual. Third-party keyboards do
-not always report the codes you would expect.
+Settings is the usual way in. `--sniff` prints key codes from a terminal if you
+would rather edit the file directly.
 
-Config lives at `~/.config/sleight/config.json` and is written on first run:
+Settings writes to `~/.config/sleight/config.json`, which is also fine to edit by
+hand:
 
 ```json
 {
@@ -137,8 +156,10 @@ Sleight is for the common cases where you do not.
 
 ## Status
 
-Early. The state machine and the keep-alive logic are tested and working; there is
-no user interface yet, so configuration is a JSON file.
+Early, but usable. The state machine and the keep-alive logic are covered by
+`--selftest`.
+
+Not yet signed with a Developer ID, so a build has to be trusted manually.
 
 ## Prior art
 

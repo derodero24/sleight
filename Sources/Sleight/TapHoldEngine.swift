@@ -19,7 +19,7 @@ final class TapHoldEngine {
         case held
     }
 
-    private let bindings: [Int64: Binding]
+    private let bindings: [Int64: KeyBinding]
     private var states: [Int64: State] = [:]
     private let source = CGEventSource(stateID: .hidSystemState)
     private let verbose: Bool
@@ -28,8 +28,15 @@ final class TapHoldEngine {
     /// needing the Accessibility permission that actually posting an event does.
     var onSynthetic: ((Int64) -> Void)?
 
+    /// Passes every event through untouched. Lives here rather than on the tap so
+    /// that pausing cannot leave a half-resolved key behind, and so it is testable
+    /// without installing a tap at all.
+    var isPaused = false {
+        didSet { if isPaused { reset() } }
+    }
+
     init(config: Config, verbose: Bool = false) {
-        var map: [Int64: Binding] = [:]
+        var map: [Int64: KeyBinding] = [:]
         for binding in config.bindings { map[binding.keyCode] = binding }
         self.bindings = map
         self.verbose = verbose
@@ -62,6 +69,8 @@ final class TapHoldEngine {
     }
 
     func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        guard !isPaused else { return Unmanaged.passUnretained(event) }
+
         // Our own synthetic taps must never re-enter the state machine.
         if event.getIntegerValueField(.eventSourceUserData) == syntheticMarker {
             return Unmanaged.passUnretained(event)
