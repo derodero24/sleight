@@ -39,6 +39,7 @@ enum SelfTest {
         releasingAnotherModifierDoesNotEatTheTap()
         oneBoundKeyHeldWhileAnotherIsTapped()
         recordingSwallowsInsteadOfPassingThrough()
+        capsLockWorksUnderEitherFlagBehaviour()
 
         if failures == 0 {
             print("\nall checks passed")
@@ -305,6 +306,41 @@ enum SelfTest {
         expect(h.lastFlags.isEmpty, "afterwards keys flow normally again")
     }
 
+    /// Caps Lock reports two bits and only one of them follows the key.
+    ///
+    /// Both models are covered because the difference is not observable without
+    /// pressing a real key: one where the release carries the stateless bit
+    /// cleared, and one where the lock bit is still set on the way up. Reading the
+    /// lock bit as "still down" used to leave the hold modifier applied to
+    /// everything typed afterwards.
+    private static func capsLockWorksUnderEitherFlagBehaviour() {
+        let lockBit: UInt64 = 0x0001_0000
+
+        // Model A: the stateless bit tracks the key, lock bit set because the
+        // lock has just turned on.
+        let a = Harness(Config(bindings: [
+            KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
+        ]))
+        _ = a.flagsEvent(KeyCode.capsLock, raw: 0x0000_0080 | lockBit)  // down
+        _ = a.flagsEvent(KeyCode.capsLock, raw: lockBit)                // up, lock stays
+        expect(a.synthesized == [KeyCode.escape], "tap resolves when the lock bit lingers")
+
+        _ = a.flagsEvent(KeyCode.capsLock, raw: 0x0000_0080 | lockBit)
+        expect(a.keyDown(0x00) == .passed, "held Caps still passes the other key")
+        expect(a.lastFlags == .maskControl, "and adds its modifier")
+        _ = a.flagsEvent(KeyCode.capsLock, raw: lockBit)
+        _ = a.keyDown(0x01)
+        expect(a.lastFlags.isEmpty, "which is gone once Caps is released")
+
+        // Model B: hardware that reports neither bit on the way up.
+        let b = Harness(Config(bindings: [
+            KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
+        ]))
+        _ = b.flagsEvent(KeyCode.capsLock, raw: 0)  // down, nothing set
+        _ = b.flagsEvent(KeyCode.capsLock, raw: 0)  // up
+        expect(b.synthesized == [KeyCode.escape], "and when neither bit is reported")
+    }
+
     // MARK: - Harness
 
     private enum Outcome { case passed, swallowed }
@@ -336,6 +372,13 @@ enum SelfTest {
         /// The same key going up: `flagsChanged` with the bit cleared.
         func modifierUp(_ code: Int64) -> Outcome {
             send(code, type: .flagsChanged, autorepeat: false, flags: CGEventFlags())
+        }
+
+        /// A `flagsChanged` with exactly the bits given, for keys whose reporting
+        /// is the thing under test.
+        func flagsEvent(_ code: Int64, raw: UInt64) -> Outcome {
+            send(code, type: .flagsChanged, autorepeat: false,
+                 flags: CGEventFlags(rawValue: raw))
         }
 
         private func send(

@@ -121,7 +121,13 @@ final class TapHoldEngine {
         case .flagsChanged where isBound:
             // Caps Lock, Right Command and friends never produce keyDown/keyUp.
             // Swallowing these is also what stops Caps Lock from toggling.
-            return KeyCode.isPress(code: keyCode, flags: event.flags)
+            //
+            // A release with nothing waiting cannot be a release, so it is treated
+            // as a press. That keeps the key working even on hardware whose flags
+            // do not report the physical state the way the table expects, rather
+            // than swallowing it for ever.
+            let looksLikePress = KeyCode.isPress(code: keyCode, flags: event.flags)
+            return looksLikePress || states[keyCode] == nil
                 ? handleBoundKeyDown(keyCode: keyCode, event: event)
                 : handleBoundKeyUp(keyCode: keyCode, event: event)
         case .keyDown, .keyUp, .flagsChanged:

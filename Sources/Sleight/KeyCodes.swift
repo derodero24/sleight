@@ -118,6 +118,12 @@ enum KeyCode {
     /// Left and right modifiers share the public masks (both Shifts set
     /// `maskShift`), so these are the device-dependent bits from IOKit's
     /// `NX_DEVICE*KEYMASK` set - the only way to know *which* Shift moved.
+    ///
+    /// Caps Lock has two bits and only one of them is the key. `NX_ALPHASHIFTMASK`
+    /// (0x10000) is the lock itself, which flips once per two presses and stays
+    /// set while the key comes back up; reading that as "still down" left the hold
+    /// modifier applied to everything typed afterwards. The stateless bit below is
+    /// the one that follows the key.
     static let modifierBits: [Int64: UInt64] = [
         0x3B: 0x0000_0001,  // Left Control
         0x38: 0x0000_0002,  // Left Shift
@@ -127,7 +133,7 @@ enum KeyCode {
         0x3A: 0x0000_0020,  // Left Option
         0x3D: 0x0000_0040,  // Right Option
         0x3E: 0x0000_2000,  // Right Control
-        0x39: 0x0001_0000,  // Caps Lock (maskAlphaShift)
+        0x39: 0x0000_0080,  // Caps Lock (NX_DEVICE_ALPHASHIFT_STATELESS_MASK)
         0x3F: 0x0080_0000,  // Fn / Globe (NX_SECONDARYFNMASK)
     ]
 
