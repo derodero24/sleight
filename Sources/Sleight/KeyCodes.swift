@@ -50,6 +50,30 @@ enum KeyCode {
         names[code] ?? "keycode \(code)"
     }
 
+    /// Short forms for the settings list, where a truncated label is worse than a
+    /// terse one. Modifier symbols carry more at a glance than the words do, and
+    /// they are the same symbols the rest of macOS uses.
+    static let shortNames: [Int64: String] = [
+        0x66: "Eisu",
+        0x68: "Kana",
+        0x5D: "Yen",
+        0x39: "Caps ⇪",
+        0x35: "Esc",
+        0x33: "Delete",
+        0x36: "Right ⌘",
+        0x37: "Left ⌘",
+        0x38: "Left ⇧",
+        0x3A: "Left ⌥",
+        0x3B: "Left ⌃",
+        0x3C: "Right ⇧",
+        0x3D: "Right ⌥",
+        0x3E: "Right ⌃",
+    ]
+
+    static func shortName(_ code: Int64) -> String {
+        shortNames[code] ?? names[code] ?? "Key \(code)"
+    }
+
     /// Modifier keys arrive as `flagsChanged`, not `keyDown`/`keyUp`, so press and
     /// release have to be told apart by looking at the bit the key owns.
     ///
@@ -123,11 +147,11 @@ enum HoldBehavior: String, Codable, CaseIterable {
     var title: String {
         switch self {
         case .unchanged: return "Unchanged"
-        case .control: return "Control ⌃"
-        case .option: return "Option ⌥"
-        case .command: return "Command ⌘"
-        case .shift: return "Shift ⇧"
-        case .hyper: return "Hyper ⌃⌥⇧⌘"
+        case .control: return "⌃ Control"
+        case .option: return "⌥ Option"
+        case .command: return "⌘ Command"
+        case .shift: return "⇧ Shift"
+        case .hyper: return "⌃⌥⇧⌘ Hyper"
         }
     }
 }

@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 
 /// A binding while it is being edited, which is a looser thing than a saved one:
@@ -38,12 +37,9 @@ enum RecordTarget: Equatable {
 
 /// Owns the editable copy of the config and pushes changes to the live engine.
 ///
-/// Edits reach the running engine as they are made, so a binding can be felt
-/// before committing to it, but nothing is written to disk until Done. Cancel
-/// restores the bindings the window opened with. That split matters here more
-/// than in most settings windows: a wrong binding can make the keyboard awkward
-/// to use, and being able to back out without retyping the old values by hand is
-/// worth the two buttons.
+/// Nothing takes effect until Done. Applying edits as they were made read nicely
+/// but meant a misclick on a picker silently changed how the keyboard behaved,
+/// which is a bad trade for a window whose whole subject is what your keys do.
 final class SettingsStore: ObservableObject {
     @Published var bindings: [EditableBinding]
 
@@ -66,18 +62,15 @@ final class SettingsStore: ObservableObject {
     }
 
     private weak var controller: EventTapController?
-    private var cancellable: AnyCancellable?
 
     init(config: Config, controller: EventTapController?) {
         self.bindings = config.bindings.map(EditableBinding.init)
         self.controller = controller
-
-        // Coalesced so that holding down a stepper or retyping does not rebuild
-        // the engine on every keystroke.
-        cancellable = $bindings
-            .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
-            .sink { [weak self] _ in self?.apply() }
     }
+
+    /// True once the list differs from what the window opened with. Drives whether
+    /// Done is worth pressing.
+    var hasChanges: Bool { bindings != snapshot }
 
     var config: Config {
         Config(bindings: bindings.compactMap(\.saved))
@@ -114,25 +107,27 @@ final class SettingsStore: ObservableObject {
         snapshot = bindings
     }
 
-    /// Keeps the edits and writes them out. Failing to write is worth saying out
-    /// loud, since the alternative is settings that quietly vanish on restart.
+    /// The only path that changes anything: writes to disk and swaps the engine.
+    /// Failing to write is worth saying out loud, since the alternative is
+    /// settings that quietly vanish on restart.
     func commit() {
+        guard hasChanges else { return }
+        let config = self.config
         do {
             try config.write()
         } catch {
             Log.warn("could not save settings: \(error.localizedDescription)")
         }
-    }
-
-    /// Puts back what the window opened with, engine included.
-    func cancel() {
-        guard bindings != snapshot else { return }
-        bindings = snapshot
-        Log.info("settings reverted")
-    }
-
-    /// Pushes the current edits to the running engine without touching disk.
-    private func apply() {
         controller?.reload(with: TapHoldEngine(config: config))
+        snapshot = bindings
+        Log.info("settings saved (\(config.bindings.count) key(s))")
+    }
+
+    /// Throws the edits away. The engine never saw them, so there is nothing to
+    /// undo beyond the list itself.
+    func cancel() {
+        guard hasChanges else { return }
+        bindings = snapshot
+        Log.info("settings discarded")
     }
 }

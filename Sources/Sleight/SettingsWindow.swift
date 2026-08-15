@@ -12,8 +12,6 @@ final class SettingsWindow {
 
     func show() {
         if let window {
-            // Only start a new undoable session if this is not already open;
-            // re-showing a visible window must not discard what Cancel goes back to.
             if !window.isVisible { store.beginEditing() }
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -25,18 +23,16 @@ final class SettingsWindow {
             store: store,
             onCancel: { [weak self] in
                 self?.store.cancel()
-                self?.close()
+                self?.window?.close()
             },
-            onDone: { [weak self] in
+            onSave: { [weak self] in
                 self?.store.commit()
-                self?.close()
+                self?.window?.close()
             })
 
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = "Sleight"
-        window.styleMask = [.titled, .closable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
+        window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
         window.center()
         window.makeKeyAndOrderFront(nil)
@@ -49,13 +45,9 @@ final class SettingsWindow {
             guard let self else { return }
             // Leaving a field armed would swallow the next key pressed anywhere.
             self.store.recording = nil
-            // Closing the window keeps the edits, since they are already in effect
-            // and have been all along. Discarding them is what Cancel is for.
-            self.store.commit()
+            // Closing without saving discards, matching every other window that
+            // has an explicit Save. Nothing has been applied yet either way.
+            self.store.cancel()
         }
-    }
-
-    private func close() {
-        window?.close()
     }
 }

@@ -1,71 +1,133 @@
 import SwiftUI
 
-/// The whole interface. One list of keys, two things each key can do.
+/// The whole interface: one list of keys, two things each key can do.
+///
+/// Laid out the way current macOS settings are - a raised, bordered container
+/// holding the list, sitting on the plain window background, with the actions
+/// along the bottom. The two tones are what give the window depth; a single flat
+/// fill is what made the earlier version read as a black rectangle.
+///
+/// Every colour here is a system semantic colour, so light and dark are both
+/// handled by the system rather than by values picked against one of them.
 struct SettingsView: View {
     @ObservedObject var store: SettingsStore
 
-    /// What Cancel and Done report back to.
     var onCancel: () -> Void = {}
-    var onDone: () -> Void = {}
+    var onSave: () -> Void = {}
+
+    fileprivate static let keyWidth: CGFloat = 112
+    fileprivate static let tapWidth: CGFloat = 112
+    fileprivate static let holdWidth: CGFloat = 152
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            columnHeadings
+            heading
+            list
+            addButton
+            Spacer(minLength: 0)
             Divider()
-            rows
-            Divider()
-            footer
+            actions
         }
         // Fixed rather than sized to content: a window that grows and shrinks as
         // keys are added moves its own buttons around under the pointer.
-        .frame(width: 470, height: 340)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(width: 520, height: 380)
     }
 
-    private var columnHeadings: some View {
-        HStack(spacing: 10) {
-            Text("KEY").frame(width: 150, alignment: .leading)
-            Text("TAP").frame(width: 140, alignment: .leading)
-            Text("HOLD").frame(maxWidth: .infinity, alignment: .leading)
-            Spacer().frame(width: 20)
+    // MARK: - Sections
+
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("Keys")
+                .font(.system(size: 15, weight: .semibold))
+            Text("Tap sends a key. Hold turns it into a modifier.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
         }
-        .font(.system(size: 10, weight: .semibold))
-        .foregroundStyle(.tertiary)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 24)
+        .padding(.top, 18)
+        .padding(.bottom, 12)
     }
 
-    private var rows: some View {
-        ScrollView {
-            if store.bindings.isEmpty {
-                Text("No keys yet. Add one below.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 60)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach($store.bindings) { $binding in
-                        BindingRow(binding: $binding, store: store)
-                        Divider().opacity(0.4)
+    private var list: some View {
+        VStack(spacing: 0) {
+            columnHeadings
+            Divider()
+            ScrollView {
+                if store.bindings.isEmpty {
+                    empty
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array($store.bindings.enumerated()), id: \.element.id) {
+                            index, $binding in
+                            if index > 0 { Divider().padding(.leading, 14) }
+                            BindingRow(binding: $binding, store: store)
+                        }
                     }
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(height: 214)
+        // textBackgroundColor is the right semantic base for a list, but measured
+        // in isolation it is the same value as windowBackgroundColor in both
+        // appearances - the separation you see comes from the window's material,
+        // which is not something to rely on. The tint puts a real difference
+        // there, and the border guarantees the edge even if both were to match.
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(nsColor: .textBackgroundColor))
+                .overlay(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5))))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
+        .padding(.horizontal, 24)
     }
 
-    private var footer: some View {
-        HStack(spacing: 12) {
-            Button {
-                store.add()
-            } label: {
-                Label("Add Key", systemImage: "plus")
-            }
-            .buttonStyle(.link)
+    private var columnHeadings: some View {
+        HStack(spacing: 10) {
+            Text("KEY").frame(width: Self.keyWidth, alignment: .leading)
+            Text("TAP").frame(width: Self.tapWidth, alignment: .leading)
+            Text("HOLD").frame(width: Self.holdWidth, alignment: .leading)
+            Spacer(minLength: 0)
+        }
+        .font(.system(size: 10, weight: .semibold))
+        .kerning(0.5)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+    }
 
+    private var empty: some View {
+        VStack(spacing: 5) {
+            Text("No keys yet")
+                .font(.system(size: 13, weight: .medium))
+            Text("Add one, then click its key field and press a key.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 46)
+    }
+
+    private var addButton: some View {
+        Button {
+            store.add()
+        } label: {
+            Label("Add Key", systemImage: "plus.circle")
+        }
+        .buttonStyle(.link)
+        .padding(.horizontal, 24)
+        .padding(.top, 10)
+    }
+
+    private var actions: some View {
+        HStack(spacing: 12) {
             if store.recording != nil {
-                Text("Press any key")
+                Label("Press any key", systemImage: "record.circle")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            } else if store.hasChanges {
+                Text("Not saved yet")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
@@ -74,10 +136,11 @@ struct SettingsView: View {
 
             Button("Cancel", action: onCancel)
                 .keyboardShortcut(.cancelAction)
-            Button("Done", action: onDone)
+            Button("Save", action: onSave)
                 .keyboardShortcut(.defaultAction)
+                .disabled(!store.hasChanges)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 24)
         .padding(.vertical, 14)
     }
 }
@@ -86,23 +149,24 @@ struct SettingsView: View {
 private struct BindingRow: View {
     @Binding var binding: EditableBinding
     @ObservedObject var store: SettingsStore
+    @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 10) {
             KeyField(
-                label: binding.keyCode.map(KeyCode.describe) ?? "Set key",
-                isEmpty: binding.keyCode == nil,
+                title: binding.keyCode.map(KeyCode.shortName) ?? "Set key",
+                isPlaceholder: binding.keyCode == nil,
                 isRecording: store.recording == .key(binding.id),
-                width: 150
+                width: SettingsView.keyWidth
             ) {
                 store.recording = .key(binding.id)
             }
 
             KeyField(
-                label: binding.tapKeyCode.map(KeyCode.describe) ?? "None",
-                isEmpty: binding.tapKeyCode == nil,
+                title: binding.tapKeyCode.map(KeyCode.shortName) ?? "None",
+                isPlaceholder: binding.tapKeyCode == nil,
                 isRecording: store.recording == .tap(binding.id),
-                width: 140
+                width: SettingsView.tapWidth
             ) {
                 store.recording = .tap(binding.id)
             }
@@ -117,57 +181,57 @@ private struct BindingRow: View {
                 }
             }
             .labelsHidden()
-            .frame(maxWidth: .infinity)
+            .frame(width: SettingsView.holdWidth)
 
+            Spacer(minLength: 0)
+
+            // Only on hover: a row of delete buttons draws the eye to the one
+            // action here nobody wants to hit by accident.
             Button {
                 store.remove(binding.id)
             } label: {
-                Image(systemName: "minus.circle")
+                Image(systemName: "minus.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.tertiary)
-            .frame(width: 20)
+            .buttonStyle(.plain)
+            .help("Remove this key")
+            .opacity(isHovering ? 1 : 0)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 14)
         .padding(.vertical, 8)
+        .background(isHovering ? Color.primary.opacity(0.04) : .clear)
+        .onHover { isHovering = $0 }
     }
 }
 
 /// A button that becomes a key recorder when clicked.
+///
+/// Bordered rather than hand-drawn: the standard style already knows what
+/// contrast to have in each appearance, which a hand-picked fill does not.
 private struct KeyField: View {
-    let label: String
-    let isEmpty: Bool
+    let title: String
+    let isPlaceholder: Bool
     let isRecording: Bool
     let width: CGFloat
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(isRecording ? "Press a key" : label)
+            Text(isRecording ? "Press a key" : title)
                 .font(.system(size: 12))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .foregroundStyle(foreground)
-                .frame(width: width, height: 22, alignment: .leading)
-                .padding(.horizontal, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(isRecording
-                            ? Color.accentColor.opacity(0.15)
-                            : Color(nsColor: .controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5)
-                        .strokeBorder(
-                            isRecording ? Color.accentColor : Color(nsColor: .separatorColor),
-                            lineWidth: 1)
-                )
+                .frame(width: width, alignment: .leading)
+                .padding(.vertical, 2)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.bordered)
+        .tint(isRecording ? Color.accentColor : nil)
     }
 
     private var foreground: HierarchicalShapeStyle {
         if isRecording { return .primary }
-        return isEmpty ? .tertiary : .primary
+        return isPlaceholder ? .tertiary : .primary
     }
 }
