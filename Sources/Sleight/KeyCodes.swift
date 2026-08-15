@@ -53,25 +53,33 @@ enum KeyCode {
     /// Short forms for the settings list, where a truncated label is worse than a
     /// terse one. Modifier symbols carry more at a glance than the words do, and
     /// they are the same symbols the rest of macOS uses.
-    static let shortNames: [Int64: String] = [
-        0x66: "Eisu",
-        0x68: "Kana",
-        0x5D: "Yen",
-        0x39: "Caps ⇪",
-        0x35: "Esc",
-        0x33: "Delete",
-        0x36: "Right ⌘",
-        0x37: "Left ⌘",
-        0x38: "Left ⇧",
-        0x3A: "Left ⌥",
-        0x3B: "Left ⌃",
-        0x3C: "Right ⇧",
-        0x3D: "Right ⌥",
-        0x3E: "Right ⌃",
+    ///
+    /// Looked up rather than returned directly: these appear next to the menu that
+    /// sets them, and a field reading "Eisu" beside a menu item reading 英数 looks
+    /// like two different keys.
+    static let shortNameKeys: [Int64: String] = [
+        0x66: "key.eisu",
+        0x68: "key.kana",
+        0x5D: "key.yen",
+        0x39: "key.capsLock",
+        0x35: "key.escape",
+        0x33: "key.delete",
+        0x30: "key.tab",
+        0x31: "key.space",
+        0x24: "key.return",
+        0x36: "key.rightCommand",
+        0x37: "key.leftCommand",
+        0x38: "key.leftShift",
+        0x3A: "key.leftOption",
+        0x3B: "key.leftControl",
+        0x3C: "key.rightShift",
+        0x3D: "key.rightOption",
+        0x3E: "key.rightControl",
     ]
 
     static func shortName(_ code: Int64) -> String {
-        shortNames[code] ?? names[code] ?? "Key \(code)"
+        if let key = shortNameKeys[code] { return L(key) }
+        return names[code] ?? "Key \(code)"
     }
 
     /// Keys worth offering as a list rather than asking someone to press.
@@ -85,18 +93,21 @@ enum KeyCode {
     /// These two are the whole of it. macOS has no other input-source key codes;
     /// Korean uses the same pair, and the remaining JIS-only keys are ordinary
     /// characters rather than switches.
-    static let presets: [(section: String, keys: [(name: String, code: Int64)])] = [
-        ("Common", [
-            ("Escape", escape),
-            ("Tab", tab),
-            ("Space", space),
-            ("Return", returnKey),
-            ("Delete", 0x33),
-        ]),
-        ("Input Source", [
-            ("Eisu (English)", eisu),
-            ("Kana (Japanese)", kana),
-        ]),
+    static let presets: [(section: String, codes: [Int64])] = [
+        ("preset.common", [escape, tab, space, returnKey, 0x33]),
+        ("preset.inputSource", [eisu, kana]),
+    ]
+
+    /// What a binding's source key can be, offered as a list.
+    ///
+    /// Recording is the natural way to pick these, but it cannot be the only way.
+    /// Escape stops a recording, so recording could never capture Escape itself,
+    /// and Caps Lock is awkward to press on purpose. A list costs nothing and
+    /// removes both problems.
+    static let sourcePresets: [(section: String, codes: [Int64])] = [
+        ("preset.modifiers", [0x39, 0x37, 0x36, 0x3A, 0x3D, 0x3B, 0x3E]),
+        ("preset.common", [escape, tab, space, returnKey, 0x33]),
+        ("preset.inputSource", [eisu, kana]),
     ]
 
     /// Modifier keys arrive as `flagsChanged`, not `keyDown`/`keyUp`, so press and

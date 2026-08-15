@@ -156,9 +156,11 @@ private struct BindingRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            KeyField(
-                title: binding.keyCode.map(KeyCode.shortName) ?? "Set key",
-                isPlaceholder: binding.keyCode == nil,
+            KeyChooser(
+                keyCode: $binding.keyCode,
+                presets: KeyCode.sourcePresets,
+                placeholder: L("field.setKey"),
+                allowsNone: false,
                 isRecording: store.recording == .key(binding.id),
                 width: SettingsView.keyWidth
             ) {
@@ -167,8 +169,11 @@ private struct BindingRow: View {
                     ? nil : .key(binding.id)
             }
 
-            TapField(
+            KeyChooser(
                 keyCode: $binding.tapKeyCode,
+                presets: KeyCode.presets,
+                placeholder: L("None"),
+                allowsNone: true,
                 isRecording: store.recording == .tap(binding.id),
                 width: SettingsView.tapWidth
             ) {
@@ -206,34 +211,37 @@ private struct BindingRow: View {
     }
 }
 
-/// What a tap sends: a menu of useful keys, plus the option to press one.
+/// Picks a key: a menu of useful ones, plus the option to press one.
 ///
-/// A menu rather than a recorder alone because the keys people most want here are
-/// the ones they cannot press. Binding Command to Eisu on an ANSI keyboard is the
-/// whole point of the app, and an ANSI keyboard has no Eisu key to record.
-private struct TapField: View {
+/// A menu rather than recording alone because the keys people most want are often
+/// ones they cannot press. Binding Command to Eisu on an ANSI keyboard is the
+/// app's headline use and an ANSI keyboard has no Eisu key; Escape stops a
+/// recording so recording could never capture it; Caps Lock is awkward to press
+/// on purpose. The list costs nothing and removes all three problems.
+private struct KeyChooser: View {
     @Binding var keyCode: Int64?
+    let presets: [(section: String, codes: [Int64])]
+    let placeholder: String
+    let allowsNone: Bool
     let isRecording: Bool
     let width: CGFloat
     let onRecord: () -> Void
 
     var body: some View {
         Menu {
-            if isRecording {
-                Button("Stop Waiting", action: onRecord)
-            } else {
-                Button("Press a Key...", action: onRecord)
-            }
+            Button(L(isRecording ? "field.stopWaiting" : "field.pressKey"), action: onRecord)
             Divider()
-            ForEach(KeyCode.presets, id: \.section) { preset in
-                Section(LocalizedStringKey(preset.section)) {
-                    ForEach(preset.keys, id: \.code) { key in
-                        Button(LocalizedStringKey(key.name)) { keyCode = key.code }
+            ForEach(presets, id: \.section) { preset in
+                Section(L(preset.section)) {
+                    ForEach(preset.codes, id: \.self) { code in
+                        Button(KeyCode.shortName(code)) { keyCode = code }
                     }
                 }
             }
-            Divider()
-            Button("None") { keyCode = nil }
+            if allowsNone {
+                Divider()
+                Button(L("None")) { keyCode = nil }
+            }
         } label: {
             Text(label)
                 .font(.system(size: 12))
@@ -256,38 +264,7 @@ private struct TapField: View {
     }
 
     private var label: String {
-        if isRecording { return "Press a key" }
-        return keyCode.map(KeyCode.shortName) ?? "None"
-    }
-}
-
-/// A button that becomes a key recorder when clicked.
-///
-/// Bordered rather than hand-drawn: the standard style already knows what
-/// contrast to have in each appearance, which a hand-picked fill does not.
-private struct KeyField: View {
-    let title: String
-    let isPlaceholder: Bool
-    let isRecording: Bool
-    let width: CGFloat
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(isRecording ? "Press a key" : title)
-                .font(.system(size: 12))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundStyle(foreground)
-                .frame(width: width, alignment: .leading)
-                .padding(.vertical, 2)
-        }
-        .buttonStyle(.bordered)
-        .tint(isRecording ? Color.accentColor : nil)
-    }
-
-    private var foreground: HierarchicalShapeStyle {
-        if isRecording { return .primary }
-        return isPlaceholder ? .tertiary : .primary
+        if isRecording { return L("field.pressAKey") }
+        return keyCode.map(KeyCode.shortName) ?? placeholder
     }
 }

@@ -11,23 +11,10 @@
 "Not saved yet" = "未保存";
 "Revert" = "元に戻す";
 "Save" = "保存";
-"Set key" = "キーを設定";
 "None" = "なし";
-"Press a key" = "キーを押してください";
-"Press a Key..." = "キーを押して設定...";
-"Stop Waiting" = "待機をやめる";
 "Remove this key" = "このキーを削除";
 
 /* Key groups in the tap menu */
-"Input Source" = "入力ソース";
-"Common" = "よく使うキー";
-"Eisu (English)" = "英数";
-"Kana (Japanese)" = "かな";
-"Escape" = "Escape";
-"Tab" = "Tab";
-"Space" = "Space";
-"Return" = "Return";
-"Delete" = "Delete";
 
 /* Hold behaviours */
 "hold.unchanged" = "変更しない";
@@ -48,3 +35,33 @@
 "menu.resume" = "再開";
 "menu.openAtLogin" = "ログイン時に開く";
 "menu.quit" = "Sleight を終了";
+
+/* Field labels */
+"field.setKey" = "キーを設定";
+"field.pressAKey" = "キーを押してください";
+"field.pressKey" = "キーを押して設定...";
+"field.stopWaiting" = "待機をやめる";
+
+/* Preset sections */
+"preset.modifiers" = "修飾キー";
+"preset.common" = "よく使うキー";
+"preset.inputSource" = "入力ソース";
+
+/* Key names */
+"key.eisu" = "英数";
+"key.kana" = "かな";
+"key.yen" = "¥";
+"key.capsLock" = "Caps ⇪";
+"key.escape" = "Esc";
+"key.delete" = "Delete";
+"key.tab" = "Tab";
+"key.space" = "Space";
+"key.return" = "Return";
+"key.leftCommand" = "左 ⌘";
+"key.rightCommand" = "右 ⌘";
+"key.leftOption" = "左 ⌥";
+"key.rightOption" = "右 ⌥";
+"key.leftControl" = "左 ⌃";
+"key.rightControl" = "右 ⌃";
+"key.leftShift" = "左 ⇧";
+"key.rightShift" = "右 ⇧";

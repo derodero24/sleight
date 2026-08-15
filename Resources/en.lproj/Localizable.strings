@@ -11,23 +11,10 @@
 "Not saved yet" = "Not saved yet";
 "Revert" = "Revert";
 "Save" = "Save";
-"Set key" = "Set key";
 "None" = "None";
-"Press a key" = "Press a key";
-"Press a Key..." = "Press a Key...";
-"Stop Waiting" = "Stop Waiting";
 "Remove this key" = "Remove this key";
 
 /* Key groups in the tap menu */
-"Input Source" = "Input Source";
-"Common" = "Common";
-"Eisu (English)" = "Eisu (English)";
-"Kana (Japanese)" = "Kana (Japanese)";
-"Escape" = "Escape";
-"Tab" = "Tab";
-"Space" = "Space";
-"Return" = "Return";
-"Delete" = "Delete";
 
 /* Hold behaviours */
 "hold.unchanged" = "Unchanged";
@@ -48,3 +35,33 @@
 "menu.resume" = "Resume";
 "menu.openAtLogin" = "Open at Login";
 "menu.quit" = "Quit Sleight";
+
+/* Field labels */
+"field.setKey" = "Set key";
+"field.pressAKey" = "Press a key";
+"field.pressKey" = "Press a Key...";
+"field.stopWaiting" = "Stop Waiting";
+
+/* Preset sections */
+"preset.modifiers" = "Modifiers";
+"preset.common" = "Common";
+"preset.inputSource" = "Input Source";
+
+/* Key names */
+"key.eisu" = "Eisu";
+"key.kana" = "Kana";
+"key.yen" = "Yen";
+"key.capsLock" = "Caps ⇪";
+"key.escape" = "Esc";
+"key.delete" = "Delete";
+"key.tab" = "Tab";
+"key.space" = "Space";
+"key.return" = "Return";
+"key.leftCommand" = "Left ⌘";
+"key.rightCommand" = "Right ⌘";
+"key.leftOption" = "Left ⌥";
+"key.rightOption" = "Right ⌥";
+"key.leftControl" = "Left ⌃";
+"key.rightControl" = "Right ⌃";
+"key.leftShift" = "Left ⇧";
+"key.rightShift" = "Right ⇧";
