@@ -19,8 +19,6 @@ final class StatusItem: NSObject, NSMenuDelegate {
         item.menu = menu
         updateIcon()
 
-        // The controller now announces when the tap starts, stops or pauses, so
-        // the icon cannot go on showing a healthy tap after the tap has died.
         controller.onStateChange = { [weak self] in
             DispatchQueue.main.async { self?.updateIcon() }
         }
@@ -43,7 +41,9 @@ final class StatusItem: NSObject, NSMenuDelegate {
         DistributedNotificationCenter.default().addObserver(
             forName: SingleInstance.showSettings, object: nil, queue: .main
         ) { [weak self] _ in
-            self?.settingsWindow.show()
+            // Through showSettings, not straight to the window: without a tap
+            // every field would arm and wait for a key that can never arrive.
+            self?.showSettings()
         }
 
         reportPlacement()
@@ -108,14 +108,26 @@ final class StatusItem: NSObject, NSMenuDelegate {
             // and that deserves to look different rather than quietly identical.
             button.image = NSImage(
                 systemSymbolName: "exclamationmark.triangle",
-                accessibilityDescription: "Sleight needs permission")
+                accessibilityDescription: L("menu.noPermission"))
+            button.image?.isTemplate = true
+            button.title = ""
+            button.appearsDisabled = false
+            return
+        }
+        // Recording swallows every key on the machine, so it cannot look the same
+        // as running normally: the window can be behind something, and then this
+        // icon is the only thing on screen that can explain a dead keyboard.
+        if controller.isRecording {
+            button.image = NSImage(
+                systemSymbolName: "record.circle",
+                accessibilityDescription: L("menu.recording"))
             button.image?.isTemplate = true
             button.title = ""
             button.appearsDisabled = false
             return
         }
         let name = controller.isPaused ? "hand.tap" : "hand.tap.fill"
-        if let image = NSImage(systemSymbolName: name, accessibilityDescription: "Sleight") {
+        if let image = NSImage(systemSymbolName: name, accessibilityDescription: L("menu.active")) {
             image.isTemplate = true
             button.image = image
             button.title = ""
@@ -138,6 +150,16 @@ final class StatusItem: NSObject, NSMenuDelegate {
             menu.addItem(header("   " + L("menu.noPermissionDetail")))
             menu.addItem(.separator())
             add(to: menu, L("menu.openPrivacySettings"), #selector(openPrivacySettings), key: "")
+            menu.addItem(.separator())
+            add(to: menu, L("menu.quit"), #selector(quit), key: "q")
+            return
+        }
+
+        if controller.isRecording {
+            menu.addItem(header(L("menu.recording")))
+            menu.addItem(header("   " + L("menu.recordingDetail")))
+            menu.addItem(.separator())
+            add(to: menu, L("menu.stopRecording"), #selector(stopRecording), key: "")
             menu.addItem(.separator())
             add(to: menu, L("menu.quit"), #selector(quit), key: "q")
             return
@@ -182,6 +204,10 @@ final class StatusItem: NSObject, NSMenuDelegate {
         updateIcon()
     }
 
+    @objc private func stopRecording() {
+        store.recording = nil
+    }
+
     @objc func showSettings() {
         // Recording reads from the tap, so without one every field would arm and
         // then wait forever - Escape included, since that is handled by the
@@ -208,9 +234,13 @@ final class StatusItem: NSObject, NSMenuDelegate {
                 try service.register()
             }
         } catch {
-            // Commonly because the app is still in a build directory rather than
-            // /Applications. Saying so beats a menu item that silently does nothing.
+            // Usually because the app is not in /Applications. The menu closes on
+            // click, so without this the item just appears not to work.
             Log.warn("could not change the login item: \(error.localizedDescription)")
+            let alert = NSAlert()
+            alert.messageText = L("login.failed")
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
         }
     }
 

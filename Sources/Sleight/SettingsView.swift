@@ -30,7 +30,9 @@ struct SettingsView: View {
         }
         // Fixed rather than sized to content: a window that grows and shrinks as
         // keys are added moves its own buttons around under the pointer.
-        .frame(width: 520, height: 380)
+        .frame(width: 570, height: 392)
+        // The close button discards, so the title bar's edited dot is the warning
+        .background(WindowEditedMarker(isEdited: store.hasChanges))
     }
 
     // MARK: - Sections
@@ -52,7 +54,8 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             columnHeadings
             Divider()
-            ScrollView {
+            ScrollViewReader { scroller in
+              ScrollView {
                 if store.bindings.isEmpty {
                     empty
                 } else {
@@ -60,10 +63,18 @@ struct SettingsView: View {
                         ForEach(Array($store.bindings.enumerated()), id: \.element.id) {
                             index, $binding in
                             if index > 0 { Divider().padding(.leading, 14) }
-                            BindingRow(binding: $binding, store: store)
+                            BindingRow(binding: $binding, store: store).id($binding.id)
                         }
                     }
                 }
+              }
+              .onChange(of: store.bindings.count) { _ in
+                  // A new row lands below the fold once the list is full, so
+                  // Add Key looked like it did nothing at all.
+                  if let last = store.bindings.last {
+                      withAnimation { scroller.scrollTo(last.id, anchor: .bottom) }
+                  }
+              }
             }
         }
         .frame(height: 214)
@@ -71,7 +82,6 @@ struct SettingsView: View {
         // in isolation it is the same value as windowBackgroundColor in both
         // appearances - the separation you see comes from the window's material,
         // which is not something to rely on. The tint puts a real difference
-        // there, and the border guarantees the edge even if both were to match.
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(nsColor: .textBackgroundColor))
@@ -101,7 +111,7 @@ struct SettingsView: View {
         VStack(spacing: 5) {
             Text("No keys yet")
                 .font(.system(size: 13, weight: .medium))
-            Text("Add one, then click its key field and press a key.")
+            Text("Add one, then use its KEY field to choose or record a key.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
@@ -131,7 +141,7 @@ struct SettingsView: View {
                 Label("Press a key, or Escape to cancel", systemImage: "record.circle")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-            } else if !store.incompleteRows.isEmpty {
+            } else if !store.problemRows.isEmpty {
                 Text("Finish the highlighted key first")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -143,16 +153,11 @@ struct SettingsView: View {
 
             Spacer()
 
-            // Neither closes the window. Undoing a mistake and then making a
-            // different change is the common case, and having to reopen the
-            // window in between made that tedious.
             Button("Revert", action: onRevert)
                 .disabled(!store.hasChanges)
-            // Blocked while a row is unfinished: saving used to drop those rows
-            // and still report success, so they were gone at the next launch.
             Button("Save", action: onSave)
                 .keyboardShortcut(.defaultAction)
-                .disabled(!store.hasChanges || !store.incompleteRows.isEmpty)
+                .disabled(!store.hasChanges || !store.problemRows.isEmpty)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 14)
@@ -168,7 +173,9 @@ private struct BindingRow: View {
     /// Why this row will not take effect, if it will not.
     private var rowProblem: String? {
         if store.duplicateRows.contains(binding.id) { return L("row.duplicate") }
-        if store.incompleteRows.contains(binding.id) { return L("row.incomplete") }
+        if store.incompleteRows.contains(binding.id) {
+            return L(binding.keyCode == nil ? "row.noKey" : "row.noAction")
+        }
         return nil
     }
 
@@ -217,8 +224,6 @@ private struct BindingRow: View {
 
             Spacer(minLength: 0)
 
-            // Always visible, and red. Hiding it until hover made it something to
-            // hunt for, and grey gave no clue what it did.
             Button {
                 store.remove(binding.id)
             } label: {
@@ -291,5 +296,16 @@ private struct KeyChooser: View {
     private var label: String {
         if isRecording { return L("field.pressAKey") }
         return keyCode.map(KeyCode.shortName) ?? placeholder
+    }
+}
+
+/// Mirrors the unsaved state onto the window's close button.
+private struct WindowEditedMarker: NSViewRepresentable {
+    let isEdited: Bool
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        DispatchQueue.main.async { view.window?.isDocumentEdited = isEdited }
     }
 }

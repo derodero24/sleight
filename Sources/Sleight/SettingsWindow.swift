@@ -33,6 +33,15 @@ final class SettingsWindow {
         NSApp.activate(ignoringOtherApps: true)
         self.window = window
 
+        // Losing focus disarms. Otherwise clicking into another app while a field
+        // is armed leaves every key on the machine swallowed, with the only
+        // instructions on a window that is now behind something else.
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: window, queue: .main
+        ) { [weak self] _ in
+            self?.store.recording = nil
+        }
+
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in

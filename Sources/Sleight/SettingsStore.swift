@@ -45,9 +45,7 @@ final class SettingsStore: ObservableObject {
 
     /// What Cancel goes back to. Taken when the window opens rather than at init,
     /// so each visit to the window is its own undoable unit.
-    /// Published even though it is private: `hasChanges` is derived from it, and
-    /// saving changes only this. Without the announcement the buttons stayed
-    /// enabled and the window went on claiming the settings were unsaved.
+    /// Published so that saving, which changes only this, redraws the buttons.
     @Published private var snapshot: [EditableBinding] = []
 
     /// While recording, the engine is paused so the key being captured does not
@@ -76,8 +74,7 @@ final class SettingsStore: ObservableObject {
         self.verbose = verbose
     }
 
-    /// True once the list differs from what the window opened with. Drives whether
-    /// Done is worth pressing.
+    /// True once the list differs from what the window opened with.
     var hasChanges: Bool { bindings != snapshot }
 
     var config: Config {
@@ -97,6 +94,9 @@ final class SettingsStore: ObservableObject {
         Set(bindings.filter { !$0.isUsable }.map(\.id))
     }
 
+    /// Every row that will not take effect, for whatever reason.
+    var problemRows: Set<UUID> { incompleteRows.union(duplicateRows) }
+
     var duplicateRows: Set<UUID> {
         var seen: Set<Int64> = []
         var duplicates: Set<UUID> = []
@@ -112,8 +112,6 @@ final class SettingsStore: ObservableObject {
     }
 
     func remove(_ id: UUID) {
-        // Disarm if this row was the one waiting for a key, or the footer goes on
-        // asking for one with nothing highlighted and the engine stays swallowing.
         if recording == .key(id) || recording == .tap(id) { recording = nil }
         bindings.removeAll { $0.id == id }
     }
@@ -150,6 +148,9 @@ final class SettingsStore: ObservableObject {
 
     func beginEditing() {
         snapshot = bindings
+        // A stale error is worse than none: it sits first in the footer and hides
+        // the recording prompt for the rest of the session.
+        saveError = nil
     }
 
     /// The only path that changes anything: writes to disk and swaps the engine.
@@ -171,13 +172,14 @@ final class SettingsStore: ObservableObject {
         saveError = nil
         controller?.reload(with: TapHoldEngine(config: config, verbose: verbose))
         snapshot = bindings
-        Log.info("settings saved (\(config.bindings.count) key(s))")
+        Log.info("settings saved (\(config.bindings.count) key(s))")  // after dedupe
     }
 
     /// Throws the edits away. The engine never saw them, so there is nothing to
     /// undo beyond the list itself.
     func cancel() {
         recording = nil
+        saveError = nil
         guard hasChanges else { return }
         bindings = snapshot
         Log.info("settings discarded")
