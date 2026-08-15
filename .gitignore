@@ -5,3 +5,9 @@ build/
 .swiftpm/
 Package.resolved
 Icon/Sleight.iconset/
+
+# The author's global gitignore has a bare "Icon" rule from classic Mac OS,
+# which swallows this directory. Undo it here.
+!Icon/
+!Icon/*
+Icon/Sleight.iconset/

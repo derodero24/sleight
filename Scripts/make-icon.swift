@@ -21,7 +21,7 @@ let zoom = CGFloat(CommandLine.arguments.dropFirst().first.flatMap(Double.init) 
 
 let root = URL(fileURLWithPath: CommandLine.arguments[0])
     .deletingLastPathComponent().deletingLastPathComponent()
-let sourceURL = root.appendingPathComponent("Icon/source.jpg")
+let sourceURL = root.appendingPathComponent("Icon/source.png")
 let iconset = root.appendingPathComponent("Icon/Sleight.iconset")
 
 guard let source = NSImage(contentsOf: sourceURL) else {
@@ -96,4 +96,16 @@ for (name, size) in wanted {
     try data.write(to: iconset.appendingPathComponent("\(name).png"))
 }
 
-print("wrote \(wanted.count) sizes to \(iconset.lastPathComponent) (zoom \(zoom))")
+// iconutil is the only supported way to produce an .icns, and leaving it as a
+// step to remember meant the script never made the file it claims to.
+let icns = root.appendingPathComponent("Icon/Sleight.icns")
+let convert = Process()
+convert.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
+convert.arguments = ["-c", "icns", iconset.path, "-o", icns.path]
+try convert.run()
+convert.waitUntilExit()
+guard convert.terminationStatus == 0 else {
+    print("iconutil failed")
+    exit(1)
+}
+print("wrote \(wanted.count) sizes and \(icns.lastPathComponent) (zoom \(zoom))")

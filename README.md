@@ -13,6 +13,24 @@ Sleight uses `CGEventTap`, which is built into macOS. There is no kernel
 extension, no DriverKit system extension, and no virtual HID device to install or
 approve.
 
+## Requirements
+
+macOS 13 or later, and Xcode Command Line Tools. There is no download - you build
+it, which for an app that asks for Accessibility is arguably the honest way round.
+
+```
+git clone https://github.com/derodero24/sleight.git
+cd sleight
+./Scripts/create-signing-cert.sh   # once, ever
+./Scripts/install.sh               # build, install to /Applications, launch
+```
+
+Sleight makes no network connections of any kind: there is no networking code in
+the source, no analytics, and no entitlements file. It reads keyboard events,
+writes `~/.config/sleight/config.json`, and logs to `~/Library/Logs/Sleight.log`.
+To remove it: quit from the menu, delete `/Applications/Sleight.app` and those
+two paths, and turn its entry off in Accessibility settings.
+
 ## Why
 
 Getting tap/hold on macOS normally means Karabiner-Elements, which installs a
@@ -33,8 +51,12 @@ The driver-free alternatives each cover one slice of the problem:
 | Mantle | DriverKit (wraps kanata) | yes | all |
 | [hrm](https://github.com/wontaeyang/hrm) | none | yes | home row only |
 | [BC64Keys](https://github.com/badcode64/BC64Keys) | none | no | all |
-| Hyperkey / Superkey | none | hyper only | Caps Lock and modifiers |
+| Hyperkey | none | hyper only | Caps Lock and modifiers |
 | Sleight | none | yes | any key |
+
+The column the table does not have is the one a driver wins: Karabiner works in
+secure input fields, in games that read HID directly, and inside VMs. Sleight
+does not, and cannot - see [Limitations](#limitations).
 
 ## Timeless tap/hold
 
@@ -62,20 +84,23 @@ Three independent recovery paths:
 
 If the Mach port itself has gone bad, the tap is torn down and rebuilt.
 
-`--test-kill-tap` disables the tap deliberately so this stays provable:
+`--test-kill-tap` disables the tap deliberately so this stays provable. Real
+output, from `~/Library/Logs/Sleight.log`:
 
 ```
-TEST: forcibly disabled the tap - watchdog should recover it
-tap disabled by user input - re-arming
-tap re-enabled (re-arm #1)
+[01:14:22] WARN  TEST: forcibly disabled the tap - watchdog should recover it
+[01:14:27] WARN  watchdog found the tap disabled
+[01:14:27] INFO  tap re-enabled (re-arm #1)
 ```
 
 ## Any layout
 
 Bindings are plain virtual key codes, so nothing is tied to a layout. The starter
-config is picked from the attached keyboard: ANSI and ISO get Caps Lock and Right
-Option, JIS additionally gets the two keys either side of the space bar, which do
-nothing at all unless you use a Japanese input method.
+config is picked from the attached keyboard: ANSI gets Caps Lock and Right
+Option, ISO gets Caps Lock only - macOS has no separate AltGr, so on European
+layouts the right Option key is how you type `@ \ { } [ ] | ~ €` - and JIS
+additionally gets the two keys either side of the space bar, which do nothing at
+all unless you use a Japanese input method.
 
 Modifier keys work as binding targets too. They arrive as `flagsChanged` rather
 than `keyDown`/`keyUp`, and left and right share the public modifier masks, so
@@ -83,25 +108,27 @@ Sleight reads the device-dependent bits to tell which physical key moved.
 
 ## Menu bar
 
-Sleight runs as an accessory app: a menu bar item, no Dock icon. The menu lists
-the active keys and offers Settings, Pause, and Open at Login.
+Sleight runs as an accessory app: a menu bar item, no Dock icon. The menu shows
+whether it is running and offers Settings, Pause, Open at Login and Quit.
 
 Settings is one list. Each row is a key, what a tap sends, and what a hold turns
-it into. **To set a key you click the field and press it** - no key codes to look
-up.
+it into. Each field is a menu: pick a common key from the list, or choose **Press
+a Key** and press the one you want. No key codes to look up either way.
 
-Edits reach the running engine straight away, so a binding can be felt before
-committing to it, but nothing is written to disk until Done. Cancel puts back
-whatever the window opened with. A wrong binding can make the keyboard awkward to
-use, which is the worst moment to be retyping old values by hand.
+Nothing takes effect until **Save**. **Revert** puts back whatever the window
+opened with, and neither button closes the window. Applying edits as they were
+made read nicely but meant a misclick on a picker silently changed how the
+keyboard behaves, which is a poor trade in a window whose whole subject is what
+your keys do.
 
-Recording reads from the event tap rather than from the view. That is what makes
-it possible to bind Caps Lock and the modifiers at all, since those never produce
-a key press a view could receive. The engine pauses while a field is armed, so
-capturing a key does not trigger whatever it is currently bound to.
+Recording reads from the event tap rather than from the view, which is the only
+reason Caps Lock and the modifiers can be bound at all - those never produce a
+key press a view could receive. While a field is armed the engine swallows
+everything, so the key being captured cannot also trigger its current binding or
+type into whatever is behind the window.
 
-`--no-menu` runs it headless instead, which is useful over SSH or under a process
-supervisor.
+`--no-menu` runs it headless instead, for running under a process supervisor. It
+still needs a GUI login session - the tap belongs to one.
 
 ## Build
 
@@ -163,8 +190,8 @@ when it has not. Waiting for permission before showing it left the app invisible
 in precisely the case that needed explaining.
 
 The `.app` bundle matters: macOS keys Accessibility permission off the code
-signature, and macOS 26.1 has a bug where a bare executable never appears in the
-permission list at all.
+signature. In my testing on macOS 26.1 a bare executable never appeared in the
+permission list at all, so the bundle is not optional.
 
 ## Use
 
@@ -224,8 +251,13 @@ trade, and some of it cannot be engineered away:
 
 - Secure input fields, such as password prompts, bypass event taps entirely.
 - Games that read HID directly will not see remapped keys.
-- Remote desktop and VM clients that grab input are unaffected.
-- Mouse clicks do not pick up hold modifiers, since only keyboard events are tapped.
+- Remote desktop and VM clients that grab input do not see the remapping.
+- Mouse clicks do not pick up hold modifiers. Clicks are watched, so a click
+  while a key is held still resolves that key as a hold, but the click itself is
+  passed through exactly as it arrived.
+- The tap key is sent on release, not on press. That is inherent to deciding
+  without a timer.
+- A tap key cannot autorepeat. Holding a key bound to tap-Delete does nothing.
 - Hold state is applied by rewriting flags on passing events, so an application
   that polls modifier state independently may disagree.
 
@@ -234,8 +266,8 @@ Sleight is for the common cases where you do not.
 
 ## Status
 
-Early, but usable. The state machine and the keep-alive logic are covered by
-`--selftest`.
+Early, but usable. The state machine is covered by `--selftest`; the keep-alive
+paths are exercised by hand with `--test-kill-tap`, since they need a real tap.
 
 ### Before this can be distributed
 
@@ -252,9 +284,8 @@ switch.
 
 ## Prior art
 
-Independently implemented. [hrm](https://github.com/wontaeyang/hrm) demonstrates the
-same timeless approach for home row keys; note that it currently ships without a
-license file, so its code cannot be reused.
+[hrm](https://github.com/wontaeyang/hrm) reaches the same timeless conclusion for
+home row keys, and is worth reading if that is what you want.
 
 ## License
 
