@@ -1,8 +1,8 @@
 /* Settings window */
 "Keys" = "キー";
-"Tap sends a key. Hold turns it into a modifier." = "単押しでキーを送り、長押しで修飾キーになります。";
+"Tap sends a key. Hold turns it into a modifier." = "短押しでキーを送り、長押しで修飾キーになります。";
 "KEY" = "キー";
-"TAP" = "単押し";
+"TAP" = "短押し";
 "HOLD" = "長押し";
 "No keys yet" = "キーが未設定です";
 "Add one, then click its key field and press a key." = "追加してから、キー欄をクリックして実際にキーを押してください。";
@@ -29,8 +29,8 @@
 "menu.paused" = "Sleight - 一時停止中";
 "menu.noPermission" = "Sleight - アクセシビリティ権限がありません";
 "menu.noPermissionDetail" = "許可されるまでリマップは無効です。";
-"menu.openPrivacySettings" = "アクセシビリティ設定を開く...";
-"menu.settings" = "設定...";
+"menu.openPrivacySettings" = "アクセシビリティ設定を開く…";
+"menu.settings" = "設定…";
 "menu.pause" = "一時停止";
 "menu.resume" = "再開";
 "menu.openAtLogin" = "ログイン時に開く";
@@ -39,7 +39,7 @@
 /* Field labels */
 "field.setKey" = "キーを設定";
 "field.pressAKey" = "キー入力待ち";
-"field.pressKey" = "キーを押して設定...";
+"field.pressKey" = "キーを押して設定…";
 "field.stopWaiting" = "待機をやめる";
 
 /* Preset sections */
@@ -66,6 +66,8 @@
 "key.leftShift" = "左 ⇧";
 "key.rightShift" = "右 ⇧";
 "row.duplicate" = "このキーは上ですでに設定されています。最初の行だけが有効です。";
-"row.incomplete" = "単押しか長押しのどちらかを設定してください。空のままだと何も起きません。";
+"row.incomplete" = "短押しか長押しのどちらかを設定してください。空のままだと何も起きません。";
 "Finish the highlighted key first" = "印の付いた行を先に設定してください";
 "key.function" = "Fn";
+"key.underscore" = "アンダースコア";
+"key.keypadComma" = "テンキー ,";

@@ -21,7 +21,6 @@ struct KeyBinding: Codable {
         var parts: [String] = []
         if let tapKeyCode { parts.append("tap -> \(KeyCode.describe(tapKeyCode))") }
         if let hold { parts.append("hold -> \(hold.rawValue)") }
-        if parts.isEmpty { parts.append("nothing bound") }
         return "\(KeyCode.describe(keyCode)): \(parts.joined(separator: ", "))"
     }
 }
@@ -151,7 +150,13 @@ enum Log {
         return f
     }()
 
+    /// Silences the log. The self-test deliberately builds broken configs, and
+    /// their warnings were landing in the file users are told to read for bug
+    /// reports, where they look like real faults.
+    static var isQuiet = false
+
     private static func emit(_ level: String, _ message: String) {
+        guard !isQuiet else { return }
         let line = "[\(formatter.string(from: Date()))] \(level) \(message)\n"
         FileHandle.standardError.write(Data(line.utf8))
 

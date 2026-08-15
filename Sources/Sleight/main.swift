@@ -14,11 +14,16 @@ if args.contains("--help") || args.contains("-h") {
       sleight --verbose  log every tap/hold decision (use this in bug reports)
       sleight --no-menu  run headless, without the menu bar item
       sleight --help     this text
+
+    Diagnostics:
+      sleight --dump-menu      print the menu bar menu and exit
+      sleight --test-kill-tap  disable the tap after 3s, to watch it recover
     """)
     exit(0)
 }
 
 if args.contains("--selftest") {
+    Log.isQuiet = true
     exit(SelfTest.run())
 }
 
@@ -73,8 +78,11 @@ if sniffMode {
     print("Press keys to see their codes. ⌃C to quit.\n")
 } else {
     Log.info("keyboard layout: \(KeyboardLayout.detect().rawValue)")
-    Log.info("running with \(config.bindings.count) binding(s):")
-    for line in engine.boundKeyDescriptions { Log.info("  \(line)") }
+    // From the engine, not the file: bindings it refused are warned about
+    // separately, and printing the file's count made the two disagree.
+    let active = engine.boundKeyDescriptions
+    Log.info("running with \(active.count) binding(s):")
+    for line in active { Log.info("  \(line)") }
 }
 
 CFRunLoopRun()

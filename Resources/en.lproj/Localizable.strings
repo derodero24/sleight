@@ -29,8 +29,8 @@
 "menu.paused" = "Sleight - Paused";
 "menu.noPermission" = "Sleight - No Accessibility permission";
 "menu.noPermissionDetail" = "Remapping is off until it is granted.";
-"menu.openPrivacySettings" = "Open Accessibility Settings...";
-"menu.settings" = "Settings...";
+"menu.openPrivacySettings" = "Open Accessibility Settings…";
+"menu.settings" = "Settings…";
 "menu.pause" = "Pause";
 "menu.resume" = "Resume";
 "menu.openAtLogin" = "Open at Login";
@@ -39,7 +39,7 @@
 /* Field labels */
 "field.setKey" = "Set key";
 "field.pressAKey" = "Press a key";
-"field.pressKey" = "Press a Key...";
+"field.pressKey" = "Press a Key…";
 "field.stopWaiting" = "Stop Waiting";
 
 /* Preset sections */
@@ -69,3 +69,5 @@
 "row.incomplete" = "Set a tap key or a hold behaviour, or this key does nothing.";
 "Finish the highlighted key first" = "Finish the highlighted key first";
 "key.function" = "Fn";
+"key.underscore" = "Underscore";
+"key.keypadComma" = "Keypad ,";

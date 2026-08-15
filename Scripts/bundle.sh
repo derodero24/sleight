@@ -8,6 +8,9 @@
 set -euo pipefail
 
 NAME="${1:-Sleight}"
+# Every build wrote version 1, so Launch Services had nothing to notice when a
+# bundle was replaced in place. The commit count is monotonic and free.
+BUILD="$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." rev-list --count HEAD 2>/dev/null || echo 1)"
 BUNDLE_ID="${BUNDLE_ID:-dev.sleight.Sleight}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/build/$NAME.app"
@@ -45,7 +48,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleIconFile</key><string>Sleight</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
-    <key>CFBundleVersion</key><string>1</string>
+    <key>CFBundleVersion</key><string>$BUILD</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>CFBundleDevelopmentRegion</key><string>en</string>
     <key>CFBundleLocalizations</key>

@@ -62,6 +62,8 @@ enum KeyCode {
         0x66: "key.eisu",
         0x68: "key.kana",
         0x5D: "key.yen",
+        0x5E: "key.underscore",
+        0x5F: "key.keypadComma",
         0x39: "key.capsLock",
         0x35: "key.escape",
         0x33: "key.delete",

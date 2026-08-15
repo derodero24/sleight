@@ -63,9 +63,22 @@ else
     echo "signed as '$SIGN_ID'; existing Accessibility permission still applies"
 fi
 
+# A login item registration is bound to the path and signature, so an ad-hoc
+# rebuild leaves a stale entry that reads back as off and cannot be cleared from
+# the menu. Re-register only if it was on before the swap.
+LOGIN_ITEM_WAS_ON=no
+if sfltool dumpbtm 2>/dev/null | grep -q "$BUNDLE_ID"; then
+    LOGIN_ITEM_WAS_ON=yes
+fi
+
 rm -rf "$DEST"
 cp -R "$ROOT/build/Sleight.app" "$DEST"
 open "$DEST"
+
+if [ "$LOGIN_ITEM_WAS_ON" = yes ] && [ "$SIGN_ID" = "-" ]; then
+    echo "note: 'Open at Login' may need switching off and on again after an"
+    echo "      ad-hoc rebuild, because the registration is tied to the signature."
+fi
 
 echo
 echo "installed to $DEST"
