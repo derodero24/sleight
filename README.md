@@ -111,25 +111,39 @@ swift build            # binary at .build/debug/Sleight
 ./Scripts/install.sh   # the above, then install to /Applications and launch
 ```
 
-### Accessibility permission and ad-hoc signing
+### Accessibility permission and signing
 
-An ad-hoc signature's designated requirement is the cdhash:
+Grant permission once:
+
+```
+./Scripts/create-signing-cert.sh   # once, ever
+./Scripts/install.sh               # every time
+```
+
+The certificate is what makes it once rather than every time. An ad-hoc
+signature's designated requirement is the cdhash:
 
 ```
 $ codesign -d -r- Sleight.app
 # designated => cdhash H"b9ee566b..."
 ```
 
-That value changes on every build, so the entry already sitting in Accessibility
+That changes on every build, so the entry already sitting in Accessibility
 settings stops matching the new binary. It keeps showing Sleight with its switch
 turned on while the app is told it has no permission, and toggling it does not
-help - the entry has to be removed and re-added. `install.sh` does that for you
-with `tccutil reset Accessibility dev.sleight.Sleight`.
+help - the entry has to be removed and re-added. Signing against a certificate
+gives a requirement that does not move:
 
-Signing with a real identity makes the requirement cert-based and stable across
-builds, at which point permission survives updates and the reset is unnecessary.
-Set `SIGN_ID` to use one. Distribution needs this anyway: Launch Services requires
-a Developer ID for `CGEventTap` with Input Monitoring.
+```
+designated => identifier "dev.sleight.Sleight" and certificate leaf = H"a29cf0fb..."
+```
+
+`install.sh` picks up the certificate if it exists, and falls back to clearing the
+stale entry with `tccutil` if it does not.
+
+A self-signed certificate is enough for development. Distribution needs a
+Developer ID from Apple, since Launch Services requires one for `CGEventTap` with
+Input Monitoring.
 
 The menu bar item appears whether or not permission has been granted, and says so
 when it has not. Waiting for permission before showing it left the app invisible

@@ -20,6 +20,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLE_ID="dev.sleight.Sleight"
 DEST="/Applications/Sleight.app"
+CERT_NAME="${SIGNING_CERT_NAME:-Sleight Development}"
+
+# Prefer a certificate if one exists. Run Scripts/create-signing-cert.sh to make
+# one; it is the difference between granting permission once and granting it
+# after every build.
+if [ -z "${SIGN_ID:-}" ] && security find-certificate -c "$CERT_NAME" >/dev/null 2>&1; then
+    SIGN_ID="$CERT_NAME"
+fi
+export SIGN_ID="${SIGN_ID:--}"
 
 "$ROOT/Scripts/bundle.sh"
 
@@ -27,9 +36,11 @@ echo "stopping any running copy"
 pkill -f "Sleight.app" 2>/dev/null || true
 sleep 1
 
-if [ "${SIGN_ID:--}" = "-" ]; then
+if [ "$SIGN_ID" = "-" ]; then
     echo "clearing the stale Accessibility entry (ad-hoc signature)"
     tccutil reset Accessibility "$BUNDLE_ID" >/dev/null 2>&1 || true
+else
+    echo "signed as '$SIGN_ID'; existing Accessibility permission still applies"
 fi
 
 rm -rf "$DEST"
@@ -38,7 +49,7 @@ open "$DEST"
 
 echo
 echo "installed to $DEST"
-if [ "${SIGN_ID:--}" = "-" ]; then
+if [ "$SIGN_ID" = "-" ]; then
     echo "Grant Accessibility permission when asked; the app picks it up within a second."
 fi
 echo "log: ~/Library/Logs/Sleight.log"
