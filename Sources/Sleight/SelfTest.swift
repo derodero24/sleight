@@ -39,7 +39,13 @@ enum SelfTest {
         releasingAnotherModifierDoesNotEatTheTap()
         oneBoundKeyHeldWhileAnotherIsTapped()
         recordingSwallowsInsteadOfPassingThrough()
-        capsLockWorksUnderEitherFlagBehaviour()
+        capsLockIsTrackedByTheKeyNotTheLock()
+        aResetMidChordDoesNotStrandAModifier()
+        recordingAKeyDoesNotStrandItsModifier()
+        holdFlagsStayOffModifierEvents()
+        autorepeatOfAnotherKeyDoesNotForceAHold()
+        aPassedThroughKeyThatRepeatedIsAHold()
+        clickingWhileAKeyIsHeldIsNotATap()
 
         if failures == 0 {
             print("\nall checks passed")
@@ -306,39 +312,111 @@ enum SelfTest {
         expect(h.lastFlags.isEmpty, "afterwards keys flow normally again")
     }
 
-    /// Caps Lock reports two bits and only one of them follows the key.
-    ///
-    /// Both models are covered because the difference is not observable without
-    /// pressing a real key: one where the release carries the stateless bit
-    /// cleared, and one where the lock bit is still set on the way up. Reading the
-    /// lock bit as "still down" used to leave the hold modifier applied to
-    /// everything typed afterwards.
-    private static func capsLockWorksUnderEitherFlagBehaviour() {
-        let lockBit: UInt64 = 0x0001_0000
-
-        // Model A: the stateless bit tracks the key, lock bit set because the
-        // lock has just turned on.
-        let a = Harness(Config(bindings: [
+    /// Caps Lock reports two bits and only one of them follows the key: the lock
+    /// bit is still set on the way up, so reading that as "still down" left the
+    /// hold modifier applied to everything typed afterwards.
+    private static func capsLockIsTrackedByTheKeyNotTheLock() {
+        let lock: UInt64 = 0x0001_0000
+        let down: UInt64 = 0x0000_0080
+        let h = Harness(Config(bindings: [
             KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
         ]))
-        _ = a.flagsEvent(KeyCode.capsLock, raw: 0x0000_0080 | lockBit)  // down
-        _ = a.flagsEvent(KeyCode.capsLock, raw: lockBit)                // up, lock stays
-        expect(a.synthesized == [KeyCode.escape], "tap resolves when the lock bit lingers")
+        _ = h.flagsEvent(KeyCode.capsLock, raw: down | lock)
+        _ = h.flagsEvent(KeyCode.capsLock, raw: lock)  // up, lock still on
+        expect(h.synthesized == [KeyCode.escape], "the tap resolves while the lock bit lingers")
 
-        _ = a.flagsEvent(KeyCode.capsLock, raw: 0x0000_0080 | lockBit)
-        expect(a.keyDown(0x00) == .passed, "held Caps still passes the other key")
-        expect(a.lastFlags == .maskControl, "and adds its modifier")
-        _ = a.flagsEvent(KeyCode.capsLock, raw: lockBit)
-        _ = a.keyDown(0x01)
-        expect(a.lastFlags.isEmpty, "which is gone once Caps is released")
+        _ = h.flagsEvent(KeyCode.capsLock, raw: down | lock)
+        _ = h.keyDown(0x00)
+        expect(h.lastFlags == .maskControl, "holding it adds its modifier")
+        _ = h.flagsEvent(KeyCode.capsLock, raw: lock)
+        _ = h.keyDown(0x01)
+        expect(h.lastFlags.isEmpty, "and releasing it takes the modifier away")
+    }
 
-        // Model B: hardware that reports neither bit on the way up.
-        let b = Harness(Config(bindings: [
+    /// Anything that clears state mid-chord - sleep, a re-arm, a config reload,
+    /// arming a recording - used to leave the key's own release looking like a
+    /// fresh press, which armed it again and stuck its modifier on every
+    /// keystroke that followed.
+    private static func aResetMidChordDoesNotStrandAModifier() {
+        let down: UInt64 = 0x0000_0080
+        let h = Harness(Config(bindings: [
             KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
         ]))
-        _ = b.flagsEvent(KeyCode.capsLock, raw: 0)  // down, nothing set
-        _ = b.flagsEvent(KeyCode.capsLock, raw: 0)  // up
-        expect(b.synthesized == [KeyCode.escape], "and when neither bit is reported")
+        _ = h.flagsEvent(KeyCode.capsLock, raw: down)
+        h.engine.reset()                               // as sleep or a reload does
+        _ = h.flagsEvent(KeyCode.capsLock, raw: 0)     // the release still arrives
+
+        _ = h.keyDown(0x00)
+        expect(h.lastFlags.isEmpty, "no modifier is left applied after a reset")
+        expect(h.synthesized.isEmpty, "and no phantom tap is emitted")
+    }
+
+    /// Recording clears state too, and disarms before the release arrives.
+    private static func recordingAKeyDoesNotStrandItsModifier() {
+        let down: UInt64 = 0x0000_0080
+        let h = Harness(Config(bindings: [
+            KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
+        ]))
+        h.engine.isRecording = true
+        _ = h.flagsEvent(KeyCode.capsLock, raw: down)  // swallowed by recording
+        h.engine.isRecording = false                   // record() disarms here
+        _ = h.flagsEvent(KeyCode.capsLock, raw: 0)     // release arrives after
+
+        _ = h.keyDown(0x00)
+        expect(h.lastFlags.isEmpty, "recording a bound key leaves no stuck modifier")
+    }
+
+    /// A modifier's own flagsChanged must not carry someone else's hold, because
+    /// the bound key's release is swallowed and never retracts it.
+    private static func holdFlagsStayOffModifierEvents() {
+        let h = Harness(Config(bindings: [
+            KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: nil, hold: .control)
+        ]))
+        let leftShift: Int64 = 0x38
+        _ = h.flagsEvent(KeyCode.capsLock, raw: 0x0000_0080)
+        _ = h.modifierDown(leftShift)
+        expect(h.lastFlags.isEmpty, "a real modifier's event is left alone")
+        _ = h.keyDown(0x00)
+        expect(h.lastFlags == .maskControl, "while key events still get the hold")
+    }
+
+    /// A key already held down repeats; that is not a new press, so it must not
+    /// turn a waiting key into a hold.
+    private static func autorepeatOfAnotherKeyDoesNotForceAHold() {
+        let h = Harness(Config(bindings: [
+            KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
+        ]))
+        _ = h.keyDown(0x33)                       // Delete, held down
+        _ = h.flagsEvent(KeyCode.capsLock, raw: 0x0000_0080)
+        _ = h.keyDown(0x33, autorepeat: true)     // still the same press
+        _ = h.flagsEvent(KeyCode.capsLock, raw: 0)
+        expect(h.synthesized == [KeyCode.escape], "a repeat elsewhere leaves the tap a tap")
+    }
+
+    /// A passed-through key delivers its own repeats, so firing the tap as well
+    /// on release gave you both the characters and the tap key.
+    private static func aPassedThroughKeyThatRepeatedIsAHold() {
+        let h = Harness(Config(bindings: [
+            KeyBinding(keyCode: KeyCode.space, tapKeyCode: KeyCode.eisu, hold: .unchanged)
+        ]))
+        _ = h.keyDown(KeyCode.space)
+        _ = h.keyDown(KeyCode.space, autorepeat: true)
+        _ = h.keyUp(KeyCode.space)
+        expect(h.synthesized.isEmpty, "a key that repeated does not also emit its tap")
+    }
+
+    /// Command-click is the case this exists for: with Command bound to tap Eisu,
+    /// a click that the engine could not see left the key looking untouched, so
+    /// releasing it switched the input source.
+    private static func clickingWhileAKeyIsHeldIsNotATap() {
+        let leftCommand: Int64 = 0x37
+        let h = Harness(Config(bindings: [
+            KeyBinding(keyCode: leftCommand, tapKeyCode: KeyCode.eisu, hold: .unchanged)
+        ]))
+        _ = h.modifierDown(leftCommand)
+        expect(h.mouseDown() == .passed, "the click itself is untouched")
+        _ = h.modifierUp(leftCommand)
+        expect(h.synthesized.isEmpty, "and Command-click does not switch input source")
     }
 
     // MARK: - Harness
@@ -372,6 +450,18 @@ enum SelfTest {
         /// The same key going up: `flagsChanged` with the bit cleared.
         func modifierUp(_ code: Int64) -> Outcome {
             send(code, type: .flagsChanged, autorepeat: false, flags: CGEventFlags())
+        }
+
+        /// A left click, which the engine watches but never alters.
+        func mouseDown() -> Outcome {
+            let event = CGEvent(
+                mouseEventSource: nil, mouseType: .leftMouseDown,
+                mouseCursorPosition: .zero, mouseButton: .left)!
+            lastFlags = CGEventFlags()
+            guard engine.handle(type: .leftMouseDown, event: event) != nil else {
+                return .swallowed
+            }
+            return .passed
         }
 
         /// A `flagsChanged` with exactly the bits given, for keys whose reporting

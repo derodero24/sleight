@@ -5,7 +5,7 @@
 "TAP" = "短押し";
 "HOLD" = "長押し";
 "No keys yet" = "キーが未設定です";
-"Add one, then click its key field and press a key." = "追加してから、キー欄をクリックして実際にキーを押してください。";
+"Add one, then use its KEY field to choose or record a key." = "追加して、キー欄から選ぶか実際に押して登録してください。";
 "Add Key" = "キーを追加";
 "Press a key, or Escape to cancel" = "キーを押してください（Esc でキャンセル）";
 "Not saved yet" = "未保存";
@@ -66,8 +66,14 @@
 "key.leftShift" = "左 ⇧";
 "key.rightShift" = "右 ⇧";
 "row.duplicate" = "このキーは上ですでに設定されています。最初の行だけが有効です。";
-"row.incomplete" = "短押しか長押しのどちらかを設定してください。空のままだと何も起きません。";
+"row.noKey" = "この行のキーを選んでください。空のままだと何も起きません。";
+"row.noAction" = "短押しか長押しのどちらかを設定してください。空のままだと何も起きません。";
 "Finish the highlighted key first" = "印の付いた行を先に設定してください";
 "key.function" = "Fn";
 "key.underscore" = "アンダースコア";
 "key.keypadComma" = "テンキー ,";
+"key.unnamed" = "キー";
+"menu.recording" = "Sleight - キー入力待ち";
+"menu.recordingDetail" = "完了するまで他のキーは効きません。";
+"menu.stopRecording" = "待機をやめる";
+"login.failed" = "ログイン項目を変更できませんでした";

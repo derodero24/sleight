@@ -1,3 +1,4 @@
+import Carbon
 import CoreGraphics
 import Foundation
 
@@ -83,7 +84,38 @@ enum KeyCode {
 
     static func shortName(_ code: Int64) -> String {
         if let key = shortNameKeys[code] { return L(key) }
-        return names[code] ?? "Key \(code)"
+        if let names = names[code] { return names }
+        // Ordinary keys are named by asking the current layout what they type.
+        // Without this the field read "Key 0" after recording A, which is no use
+        // at all in an app whose whole interaction is "press the key you want".
+        return character(for: code) ?? "\(L("key.unnamed")) \(code)"
+    }
+
+    /// What a key types on the layout in use, uppercased, with no modifiers.
+    private static func character(for code: Int64) -> String? {
+        guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
+              let pointer = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
+        else { return nil }
+
+        let data = Unmanaged<CFData>.fromOpaque(pointer).takeUnretainedValue() as Data
+        var deadKeys: UInt32 = 0
+        var length = 0
+        var characters = [UniChar](repeating: 0, count: 4)
+
+        let status = data.withUnsafeBytes { buffer -> OSStatus in
+            guard let layout = buffer.bindMemory(to: UCKeyboardLayout.self).baseAddress
+            else { return -1 }
+            return UCKeyTranslate(
+                layout, UInt16(code), UInt16(kUCKeyActionDisplay), 0,
+                UInt32(LMGetKbdType()), UInt32(kUCKeyTranslateNoDeadKeysMask),
+                &deadKeys, characters.count, &length, &characters)
+        }
+        guard status == noErr, length > 0 else { return nil }
+
+        let text = String(utf16CodeUnits: characters, count: length)
+        // Control characters and blanks name nothing useful.
+        return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? nil : text.uppercased()
     }
 
     /// Keys worth offering as a list rather than asking someone to press.
@@ -140,12 +172,6 @@ enum KeyCode {
     ]
 
     static func isModifier(_ code: Int64) -> Bool { modifierBits[code] != nil }
-
-    /// Keys that only ever arrive as `flagsChanged`. Binding one that is not in
-    /// `modifierBits` would swallow it for ever, so these are worth naming.
-    static func reportsAsFlagsOnly(_ code: Int64) -> Bool {
-        (0x36...0x3F).contains(code)
-    }
 
     /// True when this `flagsChanged` event is the key going down.
     static func isPress(code: Int64, flags: CGEventFlags) -> Bool {

@@ -5,7 +5,7 @@
 "TAP" = "TAP";
 "HOLD" = "HOLD";
 "No keys yet" = "No keys yet";
-"Add one, then click its key field and press a key." = "Add one, then click its key field and press a key.";
+"Add one, then use its KEY field to choose or record a key." = "Add one, then use its KEY field to choose or record a key.";
 "Add Key" = "Add Key";
 "Press a key, or Escape to cancel" = "Press a key, or Escape to cancel";
 "Not saved yet" = "Not saved yet";
@@ -66,8 +66,14 @@
 "key.leftShift" = "Left ⇧";
 "key.rightShift" = "Right ⇧";
 "row.duplicate" = "This key is already set above. Only the first one takes effect.";
-"row.incomplete" = "Set a tap key or a hold behaviour, or this key does nothing.";
+"row.noKey" = "Choose a key for this row, or it does nothing.";
+"row.noAction" = "Set a tap key or a hold behaviour, or this key does nothing.";
 "Finish the highlighted key first" = "Finish the highlighted key first";
 "key.function" = "Fn";
 "key.underscore" = "Underscore";
 "key.keypadComma" = "Keypad ,";
+"key.unnamed" = "Key";
+"menu.recording" = "Sleight - Waiting for a key";
+"menu.recordingDetail" = "Other keys do nothing until this finishes.";
+"menu.stopRecording" = "Stop Waiting";
+"login.failed" = "Could not change the login item";

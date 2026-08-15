@@ -45,10 +45,6 @@ final class TapHoldEngine {
     }
 
     init(config: Config, verbose: Bool = false) {
-        // Both of these can only come from a hand-edited file, and both used to
-        // fail silently: a key that is swallowed and never emits anything looks
-        // exactly like a broken keyboard, and the second of two bindings for the
-        // same key quietly replaced the first.
         var map: [Int64: KeyBinding] = [:]
         for binding in config.bindings {
             guard binding.isUsable else {
@@ -57,15 +53,6 @@ final class TapHoldEngine {
             }
             guard map[binding.keyCode] == nil else {
                 Log.warn("ignoring a second binding for \(KeyCode.describe(binding.keyCode))")
-                continue
-            }
-            // A key that reports through flagsChanged but has no bit in the table
-            // can never be told press from release, so it would be swallowed for
-            // ever without emitting anything - a dead key with no explanation.
-            if binding.hold != .unchanged, KeyCode.reportsAsFlagsOnly(binding.keyCode),
-               !KeyCode.isModifier(binding.keyCode) {
-                Log.warn("ignoring \(KeyCode.describe(binding.keyCode)): "
-                    + "this key cannot be tracked reliably")
                 continue
             }
             map[binding.keyCode] = binding
@@ -122,16 +109,16 @@ final class TapHoldEngine {
             // Caps Lock, Right Command and friends never produce keyDown/keyUp.
             // Swallowing these is also what stops Caps Lock from toggling.
             //
-            // A release with nothing waiting cannot be a release, so it is treated
-            // as a press. That keeps the key working even on hardware whose flags
-            // do not report the physical state the way the table expects, rather
-            // than swallowing it for ever.
-            let looksLikePress = KeyCode.isPress(code: keyCode, flags: event.flags)
-            return looksLikePress || states[keyCode] == nil
+            return KeyCode.isPress(code: keyCode, flags: event.flags)
                 ? handleBoundKeyDown(keyCode: keyCode, event: event)
                 : handleBoundKeyUp(keyCode: keyCode, event: event)
         case .keyDown, .keyUp, .flagsChanged:
             return handleOtherKey(type: type, event: event)
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel:
+            // Using the mouse while a key is down means that key is a modifier,
+            // even though the click itself is left exactly as it is.
+            promotePending(except: nil)
+            return Unmanaged.passUnretained(event)
         default:
             return Unmanaged.passUnretained(event)
         }
@@ -159,6 +146,14 @@ final class TapHoldEngine {
         // Auto-repeat while held tells us nothing new, and forwarding it would
         // spam whatever the key is standing in for.
         if event.getIntegerValueField(.keyboardEventAutorepeat) == 1 {
+            // Only for a key that passes through. Its repeats are being delivered,
+            // so emitting the tap as well on release gave you both. A swallowed
+            // key delivers nothing, and turning its repeats into a hold would be a
+            // duration threshold by the back door - the one thing this design is
+            // built to avoid.
+            if through, states[keyCode] == .pending, bindings[keyCode]?.hold != nil {
+                states[keyCode] = .held
+            }
             return through ? Unmanaged.passUnretained(event) : nil
         }
         // A bound key is still "another key" to anything already pending. Without
@@ -177,7 +172,6 @@ final class TapHoldEngine {
 
     private func handleBoundKeyUp(keyCode: Int64, event: CGEvent) -> Unmanaged<CGEvent>? {
         let state = states.removeValue(forKey: keyCode)
-        // Nothing else was pressed in the meantime, so this was a tap.
         if state == .pending, let tapKey = bindings[keyCode]?.tapKeyCode {
             trace("TAP  \(KeyCode.describe(keyCode)) -> emitting \(KeyCode.describe(tapKey))")
             postSynthetic(keyCode: tapKey)
@@ -197,7 +191,8 @@ final class TapHoldEngine {
         let otherKeyWentDown: Bool
         switch type {
         case .keyDown:
-            otherKeyWentDown = true
+            // A repeat is the same press continuing, not a new one. Counting it
+            otherKeyWentDown = event.getIntegerValueField(.keyboardEventAutorepeat) != 1
         case .flagsChanged:
             let code = event.getIntegerValueField(.keyboardEventKeycode)
             otherKeyWentDown = KeyCode.isPress(code: code, flags: event.flags)
@@ -207,7 +202,8 @@ final class TapHoldEngine {
 
         if otherKeyWentDown { promotePending(except: nil) }
 
-        let flags = activeHoldFlags
+        // Only on key events. Writing them onto a passing flagsChanged left the
+        let flags = type == .flagsChanged ? CGEventFlags() : activeHoldFlags
         if !flags.isEmpty {
             event.flags.formUnion(flags)
             let target = KeyCode.describe(event.getIntegerValueField(.keyboardEventKeycode))

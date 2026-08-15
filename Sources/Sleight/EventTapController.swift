@@ -35,12 +35,13 @@ final class EventTapController {
     /// Swallows everything while the settings window waits for a key.
     var isRecording: Bool {
         get { engine.isRecording }
-        set { engine.isRecording = newValue }
+        set {
+            engine.isRecording = newValue
+            onStateChange?()
+        }
     }
 
-    /// Fired when something the menu bar icon draws has changed. The controller
-    /// had no way to say so, which is why the icon kept showing a healthy tap
-    /// after the tap had died.
+    /// Fired when anything the menu bar icon draws has changed.
     var onStateChange: (() -> Void)?
 
     /// Every key event, reported before the engine sees it. Drives the key code
@@ -78,9 +79,16 @@ final class EventTapController {
     private func install() -> Bool {
         teardown()
 
+        // Mouse buttons and scroll are watched but never modified. Without them a
+        // Command-click resolved as a tap, so on the cmd-eikana arrangement every
+        // Command-click on a link also switched the input source.
         let mask = (1 << CGEventType.keyDown.rawValue)
             | (1 << CGEventType.keyUp.rawValue)
             | (1 << CGEventType.flagsChanged.rawValue)
+            | (1 << CGEventType.leftMouseDown.rawValue)
+            | (1 << CGEventType.rightMouseDown.rawValue)
+            | (1 << CGEventType.otherMouseDown.rawValue)
+            | (1 << CGEventType.scrollWheel.rawValue)
 
         let callback: CGEventTapCallBack = { _, type, event, context in
             guard let context else { return Unmanaged.passUnretained(event) }
