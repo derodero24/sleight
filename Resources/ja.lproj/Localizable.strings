@@ -38,7 +38,7 @@
 
 /* Field labels */
 "field.setKey" = "キーを設定";
-"field.pressAKey" = "キーを押してください";
+"field.pressAKey" = "キー入力待ち";
 "field.pressKey" = "キーを押して設定...";
 "field.stopWaiting" = "待機をやめる";
 

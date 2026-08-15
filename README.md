@@ -106,10 +106,17 @@ supervisor.
 ## Build
 
 ```
-swift build            # binary at .build/debug/Sleight
-./Scripts/bundle.sh    # build/Sleight.app, ad-hoc signed
-./Scripts/install.sh   # the above, then install to /Applications and launch
+swift build                        # binary at .build/debug/Sleight
+./Scripts/bundle.sh                # build/Sleight.app, ad-hoc signed
+./Scripts/install.sh               # the above, then install and launch
+swift Scripts/check-layout.swift   # check translations against the controls
 ```
+
+`check-layout.swift` measures every translated string against the control that
+has to hold it. Translations are not the length of the English they came from and
+an overflow is truncated rather than reported: "Press a key" fits the key field,
+and the same sentence in Japanese is half as wide again. Run it after touching
+either the strings or the column widths.
 
 ### Accessibility permission and signing
 
