@@ -27,6 +27,13 @@ cp "$BINARY" "$APP/Contents/MacOS/$NAME"
 mkdir -p "$APP/Contents/Resources"
 cp -R "$ROOT/Resources/"*.lproj "$APP/Contents/Resources/"
 
+# The icon is not decoration here: the app's central instruction is "find
+# Sleight in the Accessibility list", and without one it appears there, and in
+# Login Items, as an anonymous grey placeholder.
+if [ -f "$ROOT/Icon/Sleight.icns" ]; then
+    cp "$ROOT/Icon/Sleight.icns" "$APP/Contents/Resources/"
+fi
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -35,6 +42,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleExecutable</key><string>$NAME</string>
     <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
     <key>CFBundleName</key><string>$NAME</string>
+    <key>CFBundleIconFile</key><string>Sleight</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
     <key>CFBundleVersion</key><string>1</string>

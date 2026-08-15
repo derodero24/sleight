@@ -110,7 +110,13 @@ swift build                        # binary at .build/debug/Sleight
 ./Scripts/bundle.sh                # build/Sleight.app, ad-hoc signed
 ./Scripts/install.sh               # the above, then install and launch
 swift Scripts/check-layout.swift   # check translations against the controls
+swift Scripts/make-icon.swift 1.45 # rebuild the icon from Icon/source.jpg
 ```
+
+`make-icon.swift` adds the two things a generated image will not have: a
+continuous-curve corner rather than a plain radius, and the transparent margin
+macOS expects around the 824-of-1024 icon body. The argument crops in, since an
+image with comfortable margins of its own reads as a speck at 32 points.
 
 `check-layout.swift` measures every translated string against the control that
 has to hold it. Translations are not the length of the English they came from and
