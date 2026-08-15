@@ -49,11 +49,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 
 # Ad-hoc signing is enough to test locally. Shipping needs a Developer ID
-# certificate - Launch Services requires one for CGEventTap + Input Monitoring,
-# which makes the $99/year Apple Developer Program a hard dependency.
+# certificate, so that Gatekeeper accepts it on someone else's Mac. The tap
+# itself needs Accessibility, which is granted per app rather than by signature.
 SIGN_ID="${SIGN_ID:--}"
-codesign --force --sign "$SIGN_ID" --options runtime --timestamp=none "$APP" 2>/dev/null \
-    || codesign --force --sign "$SIGN_ID" "$APP"
+# No fallback: every shipping codesign supports --options runtime, so a retry
+# without it could only hide the real error and quietly drop hardened runtime.
+codesign --force --sign "$SIGN_ID" --options runtime --timestamp=none "$APP"
 
 echo "built  $APP"
 codesign -dv "$APP" 2>&1 | grep -E 'Identifier|Signature|TeamIdentifier' || true

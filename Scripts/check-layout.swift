@@ -40,8 +40,13 @@ func constraint(for key: String) -> CGFloat? {
     }
 }
 
-let root = FileManager.default.currentDirectoryPath
+// Derived from the script's own path, not the working directory. Resolving the
+// repo by cwd meant running it from anywhere else measured nothing at all and
+// still printed "everything fits" with exit 0 - a checker that cannot fail.
+let root = URL(fileURLWithPath: CommandLine.arguments[0])
+    .deletingLastPathComponent().deletingLastPathComponent().path
 var failures = 0
+var measured = 0
 
 for lproj in (try? FileManager.default.contentsOfDirectory(atPath: "\(root)/Resources"))?
     .filter({ $0.hasSuffix(".lproj") }).sorted() ?? []
@@ -57,6 +62,7 @@ for lproj in (try? FileManager.default.contentsOfDirectory(atPath: "\(root)/Reso
         let value = parts[1].trimmingCharacters(in: .whitespaces)
             .trimmingCharacters(in: [";"]).trimmingCharacters(in: ["\""])
         guard let available = constraint(for: key) else { continue }
+        measured += 1
 
         let width = (value as NSString).size(withAttributes: [.font: body]).width
         if width > available {
@@ -67,8 +73,12 @@ for lproj in (try? FileManager.default.contentsOfDirectory(atPath: "\(root)/Reso
     }
 }
 
+if measured == 0 {
+    print("\nno strings were measured - is \(root)/Resources missing?")
+    exit(1)
+}
 if failures == 0 {
-    print("\neverything fits")
+    print("\n\(measured) string(s) measured, everything fits")
     exit(0)
 }
 print("\n\(failures) string(s) will be truncated")

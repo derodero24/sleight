@@ -149,8 +149,8 @@ designated => identifier "dev.sleight.Sleight" and certificate leaf = H"a29cf0fb
 stale entry with `tccutil` if it does not.
 
 A self-signed certificate is enough for development. Distribution needs a
-Developer ID from Apple, since Launch Services requires one for `CGEventTap` with
-Input Monitoring.
+Developer ID from Apple, since the tap needs Accessibility, and an
+unsigned build cannot keep that permission across updates.
 
 The menu bar item appears whether or not permission has been granted, and says so
 when it has not. Waiting for permission before showing it left the app invisible
@@ -162,12 +162,14 @@ permission list at all.
 
 ## Use
 
+Nothing puts `Sleight` on `PATH`; run it from the build directory or the bundle.
+
 ```
-Sleight --selftest   # state machine checks, no permissions required
-Sleight --sniff      # print the key code of every key you press
-Sleight --verbose    # log every tap/hold decision
-Sleight --no-menu    # run without the menu bar item
-Sleight              # run
+.build/debug/Sleight --selftest   # state machine checks, no permissions needed
+.build/debug/Sleight --sniff      # print the key code of every key you press
+.build/debug/Sleight --verbose    # log every tap/hold decision
+.build/debug/Sleight --no-menu    # run without the menu bar item
+.build/debug/Sleight --dump-menu  # print the menu and exit
 ```
 
 Settings is the usual way in. `--sniff` prints key codes from a terminal if you
@@ -234,11 +236,11 @@ Early, but usable. The state machine and the keep-alive logic are covered by
 Builds are signed with a self-signed certificate, which is fine locally and
 useless anywhere else: Gatekeeper will refuse it on another Mac, and it cannot be
 notarized. Moving to a Developer ID is the blocker for releasing anything, and
-Launch Services requires one regardless for `CGEventTap` with Input Monitoring.
+an unsigned build cannot keep Accessibility permission across updates.
 
 `Scripts/install.sh` already takes a `SIGN_ID`, so the mechanism is in place. What
-is left is the Apple Developer Program membership, notarization, and enabling the
-hardened runtime. Note that changing the signing identity changes the designated
+is left is the Apple Developer Program membership and notarization; the hardened
+runtime is already on (`bundle.sh` passes `--options runtime`). Note that changing the signing identity changes the designated
 requirement, so Accessibility permission has to be granted once more after the
 switch.
 
