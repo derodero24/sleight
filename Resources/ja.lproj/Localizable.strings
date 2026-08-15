@@ -1,0 +1,50 @@
+/* Settings window */
+"Keys" = "キー";
+"Tap sends a key. Hold turns it into a modifier." = "単押しでキーを送り、長押しで修飾キーになります。";
+"KEY" = "キー";
+"TAP" = "単押し";
+"HOLD" = "長押し";
+"No keys yet" = "キーが未設定です";
+"Add one, then click its key field and press a key." = "追加してから、キー欄をクリックして実際にキーを押してください。";
+"Add Key" = "キーを追加";
+"Press a key, or Escape to cancel" = "キーを押してください（Esc でキャンセル）";
+"Not saved yet" = "未保存";
+"Revert" = "元に戻す";
+"Save" = "保存";
+"Set key" = "キーを設定";
+"None" = "なし";
+"Press a key" = "キーを押してください";
+"Press a Key..." = "キーを押して設定...";
+"Stop Waiting" = "待機をやめる";
+"Remove this key" = "このキーを削除";
+
+/* Key groups in the tap menu */
+"Input Source" = "入力ソース";
+"Common" = "よく使うキー";
+"Eisu (English)" = "英数";
+"Kana (Japanese)" = "かな";
+"Escape" = "Escape";
+"Tab" = "Tab";
+"Space" = "Space";
+"Return" = "Return";
+"Delete" = "Delete";
+
+/* Hold behaviours */
+"hold.unchanged" = "変更しない";
+"hold.control" = "⌃ Control";
+"hold.option" = "⌥ Option";
+"hold.command" = "⌘ Command";
+"hold.shift" = "⇧ Shift";
+"hold.hyper" = "⌃⌥⇧⌘ Hyper";
+
+/* Menu bar */
+"menu.active" = "Sleight - 動作中";
+"menu.paused" = "Sleight - 一時停止中";
+"menu.noPermission" = "Sleight - アクセシビリティ権限がありません";
+"menu.noPermissionDetail" = "許可されるまでリマップは無効です。";
+"menu.openPrivacySettings" = "アクセシビリティ設定を開く...";
+"menu.settings" = "設定...";
+"menu.pause" = "一時停止";
+"menu.resume" = "再開";
+"menu.openAtLogin" = "ログイン時に開く";
+"menu.quit" = "Sleight を終了";

@@ -76,21 +76,26 @@ enum KeyCode {
 
     /// Keys worth offering as a list rather than asking someone to press.
     ///
-    /// Eisu and Kana are the reason this exists. They live on JIS keyboards, and
-    /// the point of binding them from an ANSI board is that you do not have them:
-    /// "press a key" cannot capture a key that is not there. The rest are here
-    /// because picking Escape from a menu beats hunting for it.
+    /// Eisu and Kana are why this list exists at all: they live on JIS keyboards,
+    /// and the point of binding them from an ANSI board is that you do not have
+    /// them, so "press a key" cannot capture them. They come second because most
+    /// people reaching for this menu want Escape, and a section they cannot read
+    /// sitting at the top is a worse first impression than one they can.
+    ///
+    /// These two are the whole of it. macOS has no other input-source key codes;
+    /// Korean uses the same pair, and the remaining JIS-only keys are ordinary
+    /// characters rather than switches.
     static let presets: [(section: String, keys: [(name: String, code: Int64)])] = [
-        ("Input Source", [
-            ("Eisu (English)", eisu),
-            ("Kana (Japanese)", kana),
-        ]),
         ("Common", [
             ("Escape", escape),
             ("Tab", tab),
             ("Space", space),
             ("Return", returnKey),
             ("Delete", 0x33),
+        ]),
+        ("Input Source", [
+            ("Eisu (English)", eisu),
+            ("Kana (Japanese)", kana),
         ]),
     ]
 
@@ -164,14 +169,5 @@ enum HoldBehavior: String, Codable, CaseIterable {
     }
 
     /// Shown in the settings picker, with the symbol people actually recognise.
-    var title: String {
-        switch self {
-        case .unchanged: return "Unchanged"
-        case .control: return "⌃ Control"
-        case .option: return "⌥ Option"
-        case .command: return "⌘ Command"
-        case .shift: return "⇧ Shift"
-        case .hyper: return "⌃⌥⇧⌘ Hyper"
-        }
-    }
+    var title: String { L("hold.\(rawValue)") }
 }

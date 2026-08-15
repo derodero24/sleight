@@ -19,6 +19,14 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 cp "$BINARY" "$APP/Contents/MacOS/$NAME"
 
+# Localizations. Kept as .lproj directories in Contents/Resources rather than as
+# SwiftPM resources, so Bundle.main finds them and SwiftUI's Text picks them up
+# with no per-call bundle argument. macOS then honours the per-app language set in
+# System Settings > General > Language & Region, which is where people already
+# look; an in-app language picker would only compete with it.
+mkdir -p "$APP/Contents/Resources"
+cp -R "$ROOT/Resources/"*.lproj "$APP/Contents/Resources/"
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -31,6 +39,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
     <key>CFBundleVersion</key><string>1</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array><string>en</string><string>ja</string></array>
     <!-- Menu-bar/background app: no Dock icon, no window. -->
     <key>LSUIElement</key><true/>
 </dict>

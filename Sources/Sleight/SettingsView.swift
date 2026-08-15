@@ -123,7 +123,7 @@ struct SettingsView: View {
     private var actions: some View {
         HStack(spacing: 12) {
             if store.recording != nil {
-                Label("Press any key", systemImage: "record.circle")
+                Label("Press a key, or Escape to cancel", systemImage: "record.circle")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else if store.hasChanges {
@@ -162,7 +162,9 @@ private struct BindingRow: View {
                 isRecording: store.recording == .key(binding.id),
                 width: SettingsView.keyWidth
             ) {
-                store.recording = .key(binding.id)
+                // Clicking the armed field again backs out, the same as Escape.
+                store.recording = store.recording == .key(binding.id)
+                    ? nil : .key(binding.id)
             }
 
             TapField(
@@ -170,7 +172,8 @@ private struct BindingRow: View {
                 isRecording: store.recording == .tap(binding.id),
                 width: SettingsView.tapWidth
             ) {
-                store.recording = .tap(binding.id)
+                store.recording = store.recording == .tap(binding.id)
+                    ? nil : .tap(binding.id)
             }
 
             Picker("", selection: $binding.hold) {
@@ -216,12 +219,16 @@ private struct TapField: View {
 
     var body: some View {
         Menu {
-            Button("Press a Key...", action: onRecord)
+            if isRecording {
+                Button("Stop Waiting", action: onRecord)
+            } else {
+                Button("Press a Key...", action: onRecord)
+            }
             Divider()
             ForEach(KeyCode.presets, id: \.section) { preset in
-                Section(preset.section) {
+                Section(LocalizedStringKey(preset.section)) {
                     ForEach(preset.keys, id: \.code) { key in
-                        Button(key.name) { keyCode = key.code }
+                        Button(LocalizedStringKey(key.name)) { keyCode = key.code }
                     }
                 }
             }

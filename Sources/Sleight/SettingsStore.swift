@@ -87,6 +87,17 @@ final class SettingsStore: ObservableObject {
     /// Called from the event tap for every key press while recording.
     func record(_ keyCode: Int64) {
         guard let target = recording else { return }
+
+        // Escape backs out. Being armed and unable to stop is uncomfortable even
+        // when nothing is saved yet, because there is no way to know that from
+        // looking at it. The cost is that Escape cannot be recorded by pressing
+        // it, which is why it is in the tap menu instead.
+        if keyCode == KeyCode.escape {
+            recording = nil
+            Log.info("recording cancelled")
+            return
+        }
+
         switch target {
         case .key(let id):
             update(id) { $0.keyCode = keyCode }

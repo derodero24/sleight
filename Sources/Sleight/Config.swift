@@ -114,3 +114,9 @@ enum Log {
         emit("---- ", "pid \(ProcessInfo.processInfo.processIdentifier) started")
     }
 }
+
+/// Shorthand for a localized string. AppKit has no equivalent of SwiftUI's
+/// automatic lookup, so menu titles have to ask for it explicitly.
+func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}

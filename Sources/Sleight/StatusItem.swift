@@ -128,28 +128,27 @@ final class StatusItem: NSObject, NSMenuDelegate {
         menu.removeAllItems()
 
         guard controller.isRunning else {
-            menu.addItem(header("Sleight - No Accessibility permission"))
-            menu.addItem(header("   Remapping is off until it is granted."))
+            menu.addItem(header(L("menu.noPermission")))
+            menu.addItem(header("   " + L("menu.noPermissionDetail")))
             menu.addItem(.separator())
-            add(to: menu, "Open Accessibility Settings...", #selector(openPrivacySettings), key: "")
+            add(to: menu, L("menu.openPrivacySettings"), #selector(openPrivacySettings), key: "")
             menu.addItem(.separator())
-            add(to: menu, "Quit Sleight", #selector(quit), key: "q")
+            add(to: menu, L("menu.quit"), #selector(quit), key: "q")
             return
         }
 
-        let status = controller.isPaused ? "Paused" : "Active"
-        menu.addItem(header("Sleight - \(status)"))
+        menu.addItem(header(L(controller.isPaused ? "menu.paused" : "menu.active")))
 
         menu.addItem(.separator())
-        add(to: menu, "Settings...", #selector(showSettings), key: ",")
-        add(to: menu, controller.isPaused ? "Resume" : "Pause", #selector(togglePause), key: "p")
+        add(to: menu, L("menu.settings"), #selector(showSettings), key: ",")
+        add(to: menu, L(controller.isPaused ? "menu.resume" : "menu.pause"), #selector(togglePause), key: "p")
 
         menu.addItem(.separator())
-        let launch = add(to: menu, "Open at Login", #selector(toggleLaunchAtLogin), key: "")
+        let launch = add(to: menu, L("menu.openAtLogin"), #selector(toggleLaunchAtLogin), key: "")
         launch.state = SMAppService.mainApp.status == .enabled ? .on : .off
 
         menu.addItem(.separator())
-        add(to: menu, "Quit Sleight", #selector(quit), key: "q")
+        add(to: menu, L("menu.quit"), #selector(quit), key: "q")
     }
 
     private func header(_ title: String) -> NSMenuItem {

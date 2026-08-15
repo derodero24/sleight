@@ -1,0 +1,50 @@
+/* Settings window */
+"Keys" = "Keys";
+"Tap sends a key. Hold turns it into a modifier." = "Tap sends a key. Hold turns it into a modifier.";
+"KEY" = "KEY";
+"TAP" = "TAP";
+"HOLD" = "HOLD";
+"No keys yet" = "No keys yet";
+"Add one, then click its key field and press a key." = "Add one, then click its key field and press a key.";
+"Add Key" = "Add Key";
+"Press a key, or Escape to cancel" = "Press a key, or Escape to cancel";
+"Not saved yet" = "Not saved yet";
+"Revert" = "Revert";
+"Save" = "Save";
+"Set key" = "Set key";
+"None" = "None";
+"Press a key" = "Press a key";
+"Press a Key..." = "Press a Key...";
+"Stop Waiting" = "Stop Waiting";
+"Remove this key" = "Remove this key";
+
+/* Key groups in the tap menu */
+"Input Source" = "Input Source";
+"Common" = "Common";
+"Eisu (English)" = "Eisu (English)";
+"Kana (Japanese)" = "Kana (Japanese)";
+"Escape" = "Escape";
+"Tab" = "Tab";
+"Space" = "Space";
+"Return" = "Return";
+"Delete" = "Delete";
+
+/* Hold behaviours */
+"hold.unchanged" = "Unchanged";
+"hold.control" = "⌃ Control";
+"hold.option" = "⌥ Option";
+"hold.command" = "⌘ Command";
+"hold.shift" = "⇧ Shift";
+"hold.hyper" = "⌃⌥⇧⌘ Hyper";
+
+/* Menu bar */
+"menu.active" = "Sleight - Active";
+"menu.paused" = "Sleight - Paused";
+"menu.noPermission" = "Sleight - No Accessibility permission";
+"menu.noPermissionDetail" = "Remapping is off until it is granted.";
+"menu.openPrivacySettings" = "Open Accessibility Settings...";
+"menu.settings" = "Settings...";
+"menu.pause" = "Pause";
+"menu.resume" = "Resume";
+"menu.openAtLogin" = "Open at Login";
+"menu.quit" = "Quit Sleight";
