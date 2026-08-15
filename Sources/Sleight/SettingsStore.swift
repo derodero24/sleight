@@ -45,7 +45,10 @@ final class SettingsStore: ObservableObject {
 
     /// What Cancel goes back to. Taken when the window opens rather than at init,
     /// so each visit to the window is its own undoable unit.
-    private var snapshot: [EditableBinding] = []
+    /// Published even though it is private: `hasChanges` is derived from it, and
+    /// saving changes only this. Without the announcement the buttons stayed
+    /// enabled and the window went on claiming the settings were unsaved.
+    @Published private var snapshot: [EditableBinding] = []
 
     /// While recording, the engine is paused so the key being captured does not
     /// trigger whatever it is currently bound to. This is also why capture reads

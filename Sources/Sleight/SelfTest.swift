@@ -1,3 +1,4 @@
+import Combine
 import CoreGraphics
 import Foundation
 
@@ -33,6 +34,7 @@ enum SelfTest {
         pausingPassesEverythingThrough(config)
         unchangedHoldKeepsTheKeyWorking()
         cancellingSettingsRestoresThePreviousKeys()
+        savingAnnouncesThatNothingIsPending()
 
         if failures == 0 {
             print("\nall checks passed")
@@ -191,6 +193,29 @@ enum SelfTest {
         expect(
             store.config.bindings.first?.keyCode == KeyCode.capsLock,
             "including the one that was removed")
+    }
+
+    /// Saving moves the snapshot and nothing else, so unless that is announced the
+    /// window keeps its buttons enabled and goes on saying the settings are
+    /// unsaved - which is exactly what it did.
+    private static func savingAnnouncesThatNothingIsPending() {
+        let store = SettingsStore(
+            config: Config(bindings: [
+                KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
+            ]),
+            controller: nil)
+        store.beginEditing()
+        store.add()
+        expect(store.hasChanges, "adding a key counts as a change")
+
+        var announced = false
+        let subscription = store.objectWillChange.sink { _ in announced = true }
+        // The same state move that saving makes, without touching the disk.
+        store.beginEditing()
+
+        expect(!store.hasChanges, "once the snapshot catches up, nothing is pending")
+        expect(announced, "and the window is told, so its buttons can update")
+        subscription.cancel()
     }
 
     // MARK: - Harness
