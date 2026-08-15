@@ -122,8 +122,17 @@ struct SettingsView: View {
 
     private var actions: some View {
         HStack(spacing: 12) {
-            if store.recording != nil {
+            if let error = store.saveError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(nsColor: .systemRed))
+                    .lineLimit(2)
+            } else if store.recording != nil {
                 Label("Press a key, or Escape to cancel", systemImage: "record.circle")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            } else if !store.incompleteRows.isEmpty {
+                Text("Finish the highlighted key first")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else if store.hasChanges {
@@ -139,9 +148,11 @@ struct SettingsView: View {
             // window in between made that tedious.
             Button("Revert", action: onRevert)
                 .disabled(!store.hasChanges)
+            // Blocked while a row is unfinished: saving used to drop those rows
+            // and still report success, so they were gone at the next launch.
             Button("Save", action: onSave)
                 .keyboardShortcut(.defaultAction)
-                .disabled(!store.hasChanges)
+                .disabled(!store.hasChanges || !store.incompleteRows.isEmpty)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 14)
@@ -153,6 +164,13 @@ private struct BindingRow: View {
     @Binding var binding: EditableBinding
     @ObservedObject var store: SettingsStore
     @State private var isHovering = false
+
+    /// Why this row will not take effect, if it will not.
+    private var rowProblem: String? {
+        if store.duplicateRows.contains(binding.id) { return L("row.duplicate") }
+        if store.incompleteRows.contains(binding.id) { return L("row.incomplete") }
+        return nil
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -189,6 +207,13 @@ private struct BindingRow: View {
             }
             .labelsHidden()
             .frame(width: SettingsView.holdWidth)
+
+            if let problem = rowProblem {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(nsColor: .systemOrange))
+                    .help(problem)
+            }
 
             Spacer(minLength: 0)
 

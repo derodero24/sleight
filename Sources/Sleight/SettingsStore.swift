@@ -55,20 +55,25 @@ final class SettingsStore: ObservableObject {
     /// from the event tap rather than from a text field: Caps Lock and the
     /// modifiers never produce a key press a view could receive.
     @Published var recording: RecordTarget? {
-        didSet { controller?.isPaused = recording != nil || pausedByUser }
+        didSet { controller?.isRecording = recording != nil }
     }
 
-    /// Kept apart from the recording pause so that finishing a recording does not
-    /// silently resume an app the user had deliberately paused.
+    /// Separate from recording, and mapped to a separate engine mode. Folding both
+    /// into `isPaused` made the menu bar read "Paused" while a field was armed, so
+    /// its Resume item toggled the *other* bit and left the app genuinely paused
+    /// once the recording finished.
     var pausedByUser = false {
-        didSet { controller?.isPaused = recording != nil || pausedByUser }
+        didSet { controller?.isPaused = pausedByUser }
     }
 
     private weak var controller: EventTapController?
+    /// Carried so that saving does not quietly turn --verbose back off.
+    private let verbose: Bool
 
-    init(config: Config, controller: EventTapController?) {
+    init(config: Config, controller: EventTapController?, verbose: Bool = false) {
         self.bindings = config.bindings.map(EditableBinding.init)
         self.controller = controller
+        self.verbose = verbose
     }
 
     /// True once the list differs from what the window opened with. Drives whether
@@ -79,11 +84,37 @@ final class SettingsStore: ObservableObject {
         Config(bindings: bindings.compactMap(\.saved))
     }
 
+    /// Rows whose key is already claimed by an earlier row. Only the first one
+    /// takes effect, so the later ones need to say so rather than sit there
+    /// looking configured.
+    /// Set when a save fails, so the window can say so instead of pretending.
+    @Published var saveError: String?
+
+    /// Rows that are started but not finished. Saving used to drop these silently
+    /// while clearing the unsaved marker, so the row sat there looking configured
+    /// and was gone at the next launch.
+    var incompleteRows: Set<UUID> {
+        Set(bindings.filter { !$0.isUsable }.map(\.id))
+    }
+
+    var duplicateRows: Set<UUID> {
+        var seen: Set<Int64> = []
+        var duplicates: Set<UUID> = []
+        for binding in bindings {
+            guard let code = binding.keyCode else { continue }
+            if !seen.insert(code).inserted { duplicates.insert(binding.id) }
+        }
+        return duplicates
+    }
+
     func add() {
         bindings.append(EditableBinding())
     }
 
     func remove(_ id: UUID) {
+        // Disarm if this row was the one waiting for a key, or the footer goes on
+        // asking for one with nothing highlighted and the engine stays swallowing.
+        if recording == .key(id) || recording == .tap(id) { recording = nil }
         bindings.removeAll { $0.id == id }
     }
 
@@ -130,9 +161,15 @@ final class SettingsStore: ObservableObject {
         do {
             try config.write()
         } catch {
+            // A log line is not "out loud" for an app with no console. Saying
+            // nothing here meant the window cleared its unsaved marker and the
+            // settings then vanished at the next launch.
+            saveError = error.localizedDescription
             Log.warn("could not save settings: \(error.localizedDescription)")
+            return
         }
-        controller?.reload(with: TapHoldEngine(config: config))
+        saveError = nil
+        controller?.reload(with: TapHoldEngine(config: config, verbose: verbose))
         snapshot = bindings
         Log.info("settings saved (\(config.bindings.count) key(s))")
     }
@@ -140,6 +177,7 @@ final class SettingsStore: ObservableObject {
     /// Throws the edits away. The engine never saw them, so there is nothing to
     /// undo beyond the list itself.
     func cancel() {
+        recording = nil
         guard hasChanges else { return }
         bindings = snapshot
         Log.info("settings discarded")

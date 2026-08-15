@@ -43,9 +43,10 @@ if !sniffMode && !SingleInstance.claim() {
     exit(1)
 }
 
-// Sniffing only reads events, which needs Input Monitoring rather than
-// Accessibility; remapping needs Accessibility because it rewrites them.
-if !ensureAccessibilityPermission(prompt: true) {
+// Only remapping needs Accessibility, because only remapping rewrites events.
+// Sniffing is listen-only, so blocking it on a permission it does not need left
+// the diagnostic tool hanging in exactly the situation it exists to diagnose.
+if !sniffMode, !ensureAccessibilityPermission(prompt: true) {
     Log.warn("""
         Accessibility permission not granted yet.
         System Settings -> Privacy & Security -> Accessibility, then enable this app.

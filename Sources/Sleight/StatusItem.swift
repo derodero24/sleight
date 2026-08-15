@@ -19,6 +19,12 @@ final class StatusItem: NSObject, NSMenuDelegate {
         item.menu = menu
         updateIcon()
 
+        // The controller now announces when the tap starts, stops or pauses, so
+        // the icon cannot go on showing a healthy tap after the tap has died.
+        controller.onStateChange = { [weak self] in
+            DispatchQueue.main.async { self?.updateIcon() }
+        }
+
         // The recorder reads from the tap rather than from the view, because
         // Caps Lock and the modifiers never produce a key press a view can see.
         controller.keyObserver = { [weak self] code, _ in
@@ -177,10 +183,17 @@ final class StatusItem: NSObject, NSMenuDelegate {
     }
 
     @objc func showSettings() {
+        // Recording reads from the tap, so without one every field would arm and
+        // then wait forever - Escape included, since that is handled by the
+        // recorder too. Send the user where they can fix it instead.
+        guard controller.isRunning else {
+            openPrivacySettings()
+            return
+        }
         settingsWindow.show()
     }
 
-    @objc private func openPrivacySettings() {
+    @objc func openPrivacySettings() {
         let pane = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         guard let url = URL(string: pane) else { return }
         NSWorkspace.shared.open(url)

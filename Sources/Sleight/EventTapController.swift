@@ -26,8 +26,22 @@ final class EventTapController {
     /// that resuming is instant and does not re-prompt for permission.
     var isPaused: Bool {
         get { engine.isPaused }
-        set { engine.isPaused = newValue }
+        set {
+            engine.isPaused = newValue
+            onStateChange?()
+        }
     }
+
+    /// Swallows everything while the settings window waits for a key.
+    var isRecording: Bool {
+        get { engine.isRecording }
+        set { engine.isRecording = newValue }
+    }
+
+    /// Fired when something the menu bar icon draws has changed. The controller
+    /// had no way to say so, which is why the icon kept showing a healthy tap
+    /// after the tap had died.
+    var onStateChange: (() -> Void)?
 
     /// Every key event, reported before the engine sees it. Drives the key code
     /// window, which is how anyone finds the code for a key worth binding.
@@ -46,6 +60,7 @@ final class EventTapController {
     /// a property of the session, not of the config, so it survives the swap.
     func reload(with engine: TapHoldEngine) {
         engine.isPaused = self.engine.isPaused
+        engine.isRecording = self.engine.isRecording
         self.engine.reset()
         self.engine = engine
     }
@@ -90,6 +105,7 @@ final class EventTapController {
 
         self.tap = tap
         self.runLoopSource = source
+        onStateChange?()
         return true
     }
 
@@ -100,6 +116,7 @@ final class EventTapController {
         if let tap { CFMachPortInvalidate(tap) }
         runLoopSource = nil
         tap = nil
+        onStateChange?()
     }
 
     // MARK: - Event dispatch
@@ -128,8 +145,12 @@ final class EventTapController {
         guard type == .keyDown || type == .flagsChanged else { return }
         let code = event.getIntegerValueField(.keyboardEventKeycode)
         guard event.getIntegerValueField(.keyboardEventAutorepeat) != 1 else { return }
+        // Raw flags too: for modifiers, which bit tracks the key going down is the
+        // whole question, and Caps Lock is the one that does not follow the rule.
         let hex = String(format: "0x%02X", code)
-        print("keyCode \(code)  (\(hex))   \(KeyCode.describe(code))")
+        let flags = String(format: "0x%08X", event.flags.rawValue)
+        let kind = type == .flagsChanged ? "flagsChanged" : "keyDown"
+        print("keyCode \(code) (\(hex))  \(kind)  flags \(flags)   \(KeyCode.describe(code))")
     }
 
     // MARK: - Staying alive

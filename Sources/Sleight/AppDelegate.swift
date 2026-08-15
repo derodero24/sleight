@@ -39,7 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let engine = TapHoldEngine(config: config, verbose: args.contains("--verbose"))
         let controller = EventTapController(engine: engine)
-        let store = SettingsStore(config: config, controller: controller)
+        let store = SettingsStore(
+            config: config, controller: controller, verbose: args.contains("--verbose"))
 
         self.controller = controller
         self.settings = store
@@ -70,8 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func startTapWhenPermitted() {
         guard let controller else { return }
 
-        if ensureAccessibilityPermission(prompt: true) {
-            start(controller)
+        if ensureAccessibilityPermission(prompt: true), start(controller) {
             return
         }
 
@@ -80,22 +80,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Polling rather than blocking: the main thread has to stay live or the
         // permission prompt cannot be drawn and the menu cannot be opened.
+        //
+        // The timer also keeps running until the tap is actually installed, not
+        // merely until permission appears. tapCreate can fail in the moment right
+        // after a grant, before the window server has caught up, and stopping at
+        // the grant left the app permanently dead with no watchdog and no retry.
         permissionPoll = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) {
             [weak self] timer in
+            guard let self, let controller = self.controller else {
+                timer.invalidate()
+                return
+            }
             guard ensureAccessibilityPermission(prompt: false) else { return }
-            timer.invalidate()
-            Log.info("permission granted")
-            guard let self, let controller = self.controller else { return }
-            self.start(controller)
+            if self.start(controller) { timer.invalidate() }
         }
     }
 
-    private func start(_ controller: EventTapController) {
-        if controller.start() {
+    @discardableResult
+    private func start(_ controller: EventTapController) -> Bool {
+        let started = controller.start()
+        if started {
             Log.info("remapping active")
         } else {
-            Log.warn("could not create the event tap despite holding permission")
+            Log.warn("could not create the event tap; will keep trying")
         }
         statusItem?.refresh()
+        return started
     }
 }
