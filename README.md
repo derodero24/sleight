@@ -135,9 +135,29 @@ hand:
 }
 ```
 
-`hold` is one of `control`, `option`, `command`, `shift`, `hyper`. Omit `hold` for a
-tap-only key, or `tapKeyCode` for a hold-only key. A config that fails to parse
-falls back to the defaults rather than leaving you with a dead keyboard.
+`hold` is one of `unchanged`, `control`, `option`, `command`, `shift`, `hyper`.
+Omit `hold` for a tap-only key, or `tapKeyCode` for a hold-only key. A config that
+fails to parse falls back to the defaults rather than leaving you with a dead
+keyboard.
+
+`unchanged` leaves the key doing its own job and only adds the tap. Use it for
+keys the system watches directly:
+
+```json
+{ "keyCode": 55, "tapKeyCode": 102, "hold": "unchanged" }
+{ "keyCode": 54, "tapKeyCode": 104, "hold": "unchanged" }
+```
+
+That is the arrangement popularised by [⌘英かな](https://github.com/iMasanari/cmd-eikana):
+tapping left Command selects the roman input source and tapping right Command
+selects kana, while Command itself is untouched. Swallowing the key and
+re-applying its flag would cover ordinary shortcuts but break anything watching
+the modifier itself, such as holding Command to page through the app switcher.
+
+The keys it sends, 102 and 104, exist only on JIS keyboards but the codes work
+from any layout, which is what makes this useful on an ANSI board. They do need a
+Japanese input source to be enabled; with only one input source there is nothing
+to switch to.
 
 ## Limitations
 

@@ -83,13 +83,13 @@ final class TapHoldEngine {
         case .keyDown where isBound:
             return handleBoundKeyDown(keyCode: keyCode, event: event)
         case .keyUp where isBound:
-            return handleBoundKeyUp(keyCode: keyCode)
+            return handleBoundKeyUp(keyCode: keyCode, event: event)
         case .flagsChanged where isBound:
             // Caps Lock, Right Command and friends never produce keyDown/keyUp.
             // Swallowing these is also what stops Caps Lock from toggling.
             return KeyCode.isPress(code: keyCode, flags: event.flags)
                 ? handleBoundKeyDown(keyCode: keyCode, event: event)
-                : handleBoundKeyUp(keyCode: keyCode)
+                : handleBoundKeyUp(keyCode: keyCode, event: event)
         case .keyDown, .keyUp, .flagsChanged:
             return handleOtherKey(type: type, event: event)
         default:
@@ -97,18 +97,28 @@ final class TapHoldEngine {
         }
     }
 
-    private func handleBoundKeyDown(keyCode: Int64, event: CGEvent) -> Unmanaged<CGEvent>? {
-        // Auto-repeat while held tells us nothing new, and forwarding it would
-        // spam whatever the key is standing in for.
-        if event.getIntegerValueField(.keyboardEventAutorepeat) == 1 { return nil }
-        if states[keyCode] == nil {
-            states[keyCode] = .pending
-            trace("armed \(KeyCode.describe(keyCode)) - withholding until release")
-        }
-        return nil  // Withhold until release decides what this press meant.
+    /// True when the key keeps doing its own job and we only add the tap.
+    private func passesThrough(_ keyCode: Int64) -> Bool {
+        bindings[keyCode]?.hold == .unchanged
     }
 
-    private func handleBoundKeyUp(keyCode: Int64) -> Unmanaged<CGEvent>? {
+    private func handleBoundKeyDown(keyCode: Int64, event: CGEvent) -> Unmanaged<CGEvent>? {
+        let through = passesThrough(keyCode)
+
+        // Auto-repeat while held tells us nothing new, and forwarding it would
+        // spam whatever the key is standing in for.
+        if event.getIntegerValueField(.keyboardEventAutorepeat) == 1 {
+            return through ? Unmanaged.passUnretained(event) : nil
+        }
+        if states[keyCode] == nil {
+            states[keyCode] = .pending
+            trace("armed \(KeyCode.describe(keyCode))\(through ? "" : " - withholding until release")")
+        }
+        // Otherwise withhold, since only the release says what the press meant.
+        return through ? Unmanaged.passUnretained(event) : nil
+    }
+
+    private func handleBoundKeyUp(keyCode: Int64, event: CGEvent) -> Unmanaged<CGEvent>? {
         let state = states.removeValue(forKey: keyCode)
         // Nothing else was pressed in the meantime, so this was a tap.
         if state == .pending, let tapKey = bindings[keyCode]?.tapKeyCode {
@@ -117,7 +127,7 @@ final class TapHoldEngine {
         } else if state == .held {
             trace("HOLD released: \(KeyCode.describe(keyCode))")
         }
-        return nil
+        return passesThrough(keyCode) ? Unmanaged.passUnretained(event) : nil
     }
 
     /// Any key that is not itself bound. Its arrival is what commits pending keys

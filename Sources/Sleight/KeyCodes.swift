@@ -91,6 +91,16 @@ extension CGEventFlags {
 
 /// What the `hold` half of a key can turn into.
 enum HoldBehavior: String, Codable, CaseIterable {
+    /// Leave the key alone and only add the tap.
+    ///
+    /// This is what makes a Command key usable as a tap target. Swallowing a
+    /// modifier and re-applying its flag to following events covers ordinary
+    /// shortcuts, but not anything that watches the modifier itself: holding
+    /// Command to keep the app switcher open, Command-dragging in Finder. Passing
+    /// the real event through keeps all of that, and a bare modifier press does
+    /// nothing on its own, so there is nothing to suppress.
+    case unchanged
+
     case control
     case option
     case command
@@ -100,6 +110,7 @@ enum HoldBehavior: String, Codable, CaseIterable {
 
     var flags: CGEventFlags {
         switch self {
+        case .unchanged: return []
         case .control: return .maskControl
         case .option: return .maskAlternate
         case .command: return .maskCommand
@@ -111,6 +122,7 @@ enum HoldBehavior: String, Codable, CaseIterable {
     /// Shown in the settings picker, with the symbol people actually recognise.
     var title: String {
         switch self {
+        case .unchanged: return "Unchanged"
         case .control: return "Control ⌃"
         case .option: return "Option ⌥"
         case .command: return "Command ⌘"

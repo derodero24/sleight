@@ -114,14 +114,6 @@ final class StatusItem: NSObject, NSMenuDelegate {
         let status = controller.isPaused ? "Paused" : "Active"
         menu.addItem(header("Sleight - \(status)"))
 
-        let bindings = store.config.bindings
-        for line in bindings.map(\.label) {
-            menu.addItem(header("   \(line)"))
-        }
-        if bindings.isEmpty {
-            menu.addItem(header("   No keys configured"))
-        }
-
         menu.addItem(.separator())
         add(to: menu, "Settings...", #selector(showSettings), key: ",")
         add(to: menu, controller.isPaused ? "Resume" : "Pause", #selector(togglePause), key: "p")

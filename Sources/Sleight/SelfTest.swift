@@ -31,6 +31,7 @@ enum SelfTest {
         modifierKeyTapEmitsItsTapKey()
         modifierKeyHoldActsAsModifier()
         pausingPassesEverythingThrough(config)
+        unchangedHoldKeepsTheKeyWorking()
 
         if failures == 0 {
             print("\nall checks passed")
@@ -140,6 +141,31 @@ enum SelfTest {
         _ = h.keyDown(KeyCode.kana)
         _ = h.keyUp(KeyCode.kana)
         expect(h.synthesized == [KeyCode.kana], "resuming restores remapping")
+    }
+
+    /// The Command-key-to-input-source arrangement, which is why `.unchanged`
+    /// exists. Command has to keep reaching the system or holding it to page
+    /// through the app switcher stops working.
+    private static func unchangedHoldKeepsTheKeyWorking() {
+        let leftCommand: Int64 = 0x37
+        let h = Harness(Config(bindings: [
+            KeyBinding(keyCode: leftCommand, tapKeyCode: KeyCode.eisu, hold: .unchanged)
+        ]))
+
+        expect(h.modifierDown(leftCommand) == .passed, "Command still reaches the system")
+        expect(h.modifierUp(leftCommand) == .passed, "so does its release")
+        expect(h.synthesized == [KeyCode.eisu], "tapping Command emits Eisu")
+
+        // Used as a modifier it must stay silent, or every shortcut would also
+        // switch input source.
+        let combo = Harness(Config(bindings: [
+            KeyBinding(keyCode: leftCommand, tapKeyCode: KeyCode.eisu, hold: .unchanged)
+        ]))
+        _ = combo.modifierDown(leftCommand)
+        expect(combo.keyDown(0x08) == .passed, "the other key of a shortcut passes")
+        _ = combo.keyUp(0x08)
+        _ = combo.modifierUp(leftCommand)
+        expect(combo.synthesized.isEmpty, "Command-C does not emit Eisu")
     }
 
     // MARK: - Harness
