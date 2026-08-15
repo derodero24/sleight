@@ -18,6 +18,10 @@ final class EventTapController {
 
     private(set) var reArmCount = 0
 
+    /// Whether a tap is installed. False before `start()` succeeds, which is the
+    /// normal state while Accessibility permission is still missing.
+    var isRunning: Bool { tap != nil }
+
     /// Events pass through untouched while paused. The tap stays installed so
     /// that resuming is instant and does not re-prompt for permission.
     var isPaused: Bool {

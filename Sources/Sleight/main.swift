@@ -28,6 +28,8 @@ let sniffMode = args.contains("--sniff")
 // process supervisor. The menu bar mode hands off to AppKit, which also has to
 // own startup: exiting before AppKit finishes launching looks to Launch Services
 // like an app that stopped responding.
+Log.session()
+
 guard sniffMode || args.contains("--no-menu") else {
     let app = NSApplication.shared
     let delegate = AppDelegate(args: args)

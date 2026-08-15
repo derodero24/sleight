@@ -87,11 +87,27 @@ final class StatusItem: NSObject, NSMenuDelegate {
 
     // MARK: - Appearance
 
+    /// Redraws the icon after something outside the menu changed the state.
+    func refresh() {
+        updateIcon()
+    }
+
     /// A tapping hand rather than a keyboard glyph. Menu bars are full of small
     /// grey key shapes and they are impossible to tell apart at a glance; this one
     /// also happens to be what the app does.
     private func updateIcon() {
         guard let button = item.button else { return }
+        guard controller.isRunning else {
+            // Not merely paused: nothing works at all until permission is granted,
+            // and that deserves to look different rather than quietly identical.
+            button.image = NSImage(
+                systemSymbolName: "exclamationmark.triangle",
+                accessibilityDescription: "Sleight needs permission")
+            button.image?.isTemplate = true
+            button.title = ""
+            button.appearsDisabled = false
+            return
+        }
         let name = controller.isPaused ? "hand.tap" : "hand.tap.fill"
         if let image = NSImage(systemSymbolName: name, accessibilityDescription: "Sleight") {
             image.isTemplate = true
@@ -110,6 +126,16 @@ final class StatusItem: NSObject, NSMenuDelegate {
     /// Rebuilt on every open so the binding list and pause state cannot go stale.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
+
+        guard controller.isRunning else {
+            menu.addItem(header("Sleight - No Accessibility permission"))
+            menu.addItem(header("   Remapping is off until it is granted."))
+            menu.addItem(.separator())
+            add(to: menu, "Open Accessibility Settings...", #selector(openPrivacySettings), key: "")
+            menu.addItem(.separator())
+            add(to: menu, "Quit Sleight", #selector(quit), key: "q")
+            return
+        }
 
         let status = controller.isPaused ? "Paused" : "Active"
         menu.addItem(header("Sleight - \(status)"))
@@ -153,6 +179,12 @@ final class StatusItem: NSObject, NSMenuDelegate {
 
     @objc func showSettings() {
         settingsWindow.show()
+    }
+
+    @objc private func openPrivacySettings() {
+        let pane = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        guard let url = URL(string: pane) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     @objc private func toggleLaunchAtLogin() {

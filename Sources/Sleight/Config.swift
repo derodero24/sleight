@@ -67,7 +67,33 @@ struct Config: Codable {
     }
 }
 
+/// Writes to stderr and to a file.
+///
+/// An app with no window, no Dock icon and no console has nowhere to say what
+/// went wrong, and stderr goes nowhere when Launch Services starts it. The file
+/// is the only account of a session that anyone can actually read afterwards.
 enum Log {
+    static let fileURL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Logs/Sleight.log")
+
+    private static let handle: FileHandle? = {
+        let url = fileURL
+        let manager = FileManager.default
+        try? manager.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+        // Appending, not truncating. A launch that finds the app already running
+        // is still a process that writes here, and truncating on open meant that
+        // second process wiped the log of the instance actually doing the work.
+        let size = (try? manager.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+        if !manager.fileExists(atPath: url.path) || (size ?? 0) > 512 * 1024 {
+            manager.createFile(atPath: url.path, contents: nil)
+        }
+        let handle = try? FileHandle(forWritingTo: url)
+        try? handle?.seekToEnd()
+        return handle
+    }()
+
     private static let formatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
@@ -75,10 +101,16 @@ enum Log {
     }()
 
     private static func emit(_ level: String, _ message: String) {
-        FileHandle.standardError.write(
-            Data("[\(formatter.string(from: Date()))] \(level) \(message)\n".utf8))
+        let line = Data("[\(formatter.string(from: Date()))] \(level) \(message)\n".utf8)
+        FileHandle.standardError.write(line)
+        handle?.write(line)
     }
 
     static func info(_ message: String) { emit("INFO ", message) }
     static func warn(_ message: String) { emit("WARN ", message) }
+
+    /// Marks where one run ends and the next begins, since the file is shared.
+    static func session() {
+        emit("---- ", "pid \(ProcessInfo.processInfo.processIdentifier) started")
+    }
 }

@@ -1,6 +1,6 @@
 import AppKit
 
-/// Owns startup for the windowed (menu bar) mode.
+/// Owns startup for the menu bar mode.
 ///
 /// Everything here has to happen after AppKit has finished launching. Exiting
 /// before that point looks to Launch Services like an app that started and then
@@ -17,8 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Opening an app that is already running should show something. Launch
-    /// Services usually reactivates the existing process rather than starting a
-    /// second one, so this, not the duplicate-instance path, is what normally runs.
+    /// Services reactivates the existing process rather than starting a second
+    /// one, so this, not the duplicate-instance path, is what normally runs.
     func applicationShouldHandleReopen(
         _ sender: NSApplication, hasVisibleWindows flag: Bool
     ) -> Bool {
@@ -34,42 +34,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        if ensureAccessibilityPermission(prompt: true) {
-            startTap()
-        } else {
-            // Polling rather than blocking. The main thread has to stay live or
-            // the permission prompt itself cannot be drawn.
-            Log.info("waiting for Accessibility permission")
-            permissionPoll = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) {
-                [weak self] timer in
-                guard ensureAccessibilityPermission(prompt: false) else { return }
-                timer.invalidate()
-                Log.info("permission granted")
-                self?.startTap()
-            }
-        }
-    }
-
-    private func startTap() {
         let config = Config.load()
         config.writeIfAbsent()
 
         let engine = TapHoldEngine(config: config, verbose: args.contains("--verbose"))
         let controller = EventTapController(engine: engine)
+        let store = SettingsStore(config: config, controller: controller)
 
-        guard controller.start() else {
-            Log.warn("could not create the event tap despite holding permission")
-            NSApp.terminate(nil)
-            return
-        }
+        self.controller = controller
+        self.settings = store
+
+        // Built before the tap, and unconditionally. This is the only interface
+        // the app has, so waiting for permission left it completely invisible in
+        // exactly the situation that most needs explaining. Reinstalling an
+        // ad-hoc signed build revokes Accessibility, which makes that situation
+        // routine rather than rare.
+        self.statusItem = StatusItem(controller: controller, store: store)
 
         Log.info("keyboard layout: \(KeyboardLayout.detect().rawValue)")
         for line in engine.boundKeyDescriptions { Log.info("  \(line)") }
 
-        let store = SettingsStore(config: config, controller: controller)
-        self.controller = controller
-        self.settings = store
-        self.statusItem = StatusItem(controller: controller, store: store)
+        startTapWhenPermitted()
 
         if args.contains("--dump-menu") {
             statusItem?.dumpMenu()
@@ -80,5 +65,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 controller.debugDisableTap()
             }
         }
+    }
+
+    private func startTapWhenPermitted() {
+        guard let controller else { return }
+
+        if ensureAccessibilityPermission(prompt: true) {
+            start(controller)
+            return
+        }
+
+        Log.warn("Accessibility permission missing; remapping is off until granted")
+        statusItem?.refresh()
+
+        // Polling rather than blocking: the main thread has to stay live or the
+        // permission prompt cannot be drawn and the menu cannot be opened.
+        permissionPoll = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) {
+            [weak self] timer in
+            guard ensureAccessibilityPermission(prompt: false) else { return }
+            timer.invalidate()
+            Log.info("permission granted")
+            guard let self, let controller = self.controller else { return }
+            self.start(controller)
+        }
+    }
+
+    private func start(_ controller: EventTapController) {
+        if controller.start() {
+            Log.info("remapping active")
+        } else {
+            Log.warn("could not create the event tap despite holding permission")
+        }
+        statusItem?.refresh()
     }
 }
