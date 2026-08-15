@@ -21,14 +21,8 @@ final class SettingsWindow {
 
         let view = SettingsView(
             store: store,
-            onCancel: { [weak self] in
-                self?.store.cancel()
-                self?.window?.close()
-            },
-            onSave: { [weak self] in
-                self?.store.commit()
-                self?.window?.close()
-            })
+            onRevert: { [weak self] in self?.store.cancel() },
+            onSave: { [weak self] in self?.store.commit() })
 
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = "Sleight"

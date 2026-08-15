@@ -74,6 +74,26 @@ enum KeyCode {
         shortNames[code] ?? names[code] ?? "Key \(code)"
     }
 
+    /// Keys worth offering as a list rather than asking someone to press.
+    ///
+    /// Eisu and Kana are the reason this exists. They live on JIS keyboards, and
+    /// the point of binding them from an ANSI board is that you do not have them:
+    /// "press a key" cannot capture a key that is not there. The rest are here
+    /// because picking Escape from a menu beats hunting for it.
+    static let presets: [(section: String, keys: [(name: String, code: Int64)])] = [
+        ("Input Source", [
+            ("Eisu (English)", eisu),
+            ("Kana (Japanese)", kana),
+        ]),
+        ("Common", [
+            ("Escape", escape),
+            ("Tab", tab),
+            ("Space", space),
+            ("Return", returnKey),
+            ("Delete", 0x33),
+        ]),
+    ]
+
     /// Modifier keys arrive as `flagsChanged`, not `keyDown`/`keyUp`, so press and
     /// release have to be told apart by looking at the bit the key owns.
     ///

@@ -12,7 +12,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var store: SettingsStore
 
-    var onCancel: () -> Void = {}
+    var onRevert: () -> Void = {}
     var onSave: () -> Void = {}
 
     fileprivate static let keyWidth: CGFloat = 112
@@ -134,8 +134,11 @@ struct SettingsView: View {
 
             Spacer()
 
-            Button("Cancel", action: onCancel)
-                .keyboardShortcut(.cancelAction)
+            // Neither closes the window. Undoing a mistake and then making a
+            // different change is the common case, and having to reopen the
+            // window in between made that tedious.
+            Button("Revert", action: onRevert)
+                .disabled(!store.hasChanges)
             Button("Save", action: onSave)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!store.hasChanges)
@@ -162,16 +165,12 @@ private struct BindingRow: View {
                 store.recording = .key(binding.id)
             }
 
-            KeyField(
-                title: binding.tapKeyCode.map(KeyCode.shortName) ?? "None",
-                isPlaceholder: binding.tapKeyCode == nil,
+            TapField(
+                keyCode: $binding.tapKeyCode,
                 isRecording: store.recording == .tap(binding.id),
                 width: SettingsView.tapWidth
             ) {
                 store.recording = .tap(binding.id)
-            }
-            .contextMenu {
-                Button("Clear") { binding.tapKeyCode = nil }
             }
 
             Picker("", selection: $binding.hold) {
@@ -185,23 +184,73 @@ private struct BindingRow: View {
 
             Spacer(minLength: 0)
 
-            // Only on hover: a row of delete buttons draws the eye to the one
-            // action here nobody wants to hit by accident.
+            // Always visible, and red. Hiding it until hover made it something to
+            // hunt for, and grey gave no clue what it did.
             Button {
                 store.remove(binding.id)
             } label: {
                 Image(systemName: "minus.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color(nsColor: .systemRed))
             }
             .buttonStyle(.plain)
             .help("Remove this key")
-            .opacity(isHovering ? 1 : 0)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(isHovering ? Color.primary.opacity(0.04) : .clear)
         .onHover { isHovering = $0 }
+    }
+}
+
+/// What a tap sends: a menu of useful keys, plus the option to press one.
+///
+/// A menu rather than a recorder alone because the keys people most want here are
+/// the ones they cannot press. Binding Command to Eisu on an ANSI keyboard is the
+/// whole point of the app, and an ANSI keyboard has no Eisu key to record.
+private struct TapField: View {
+    @Binding var keyCode: Int64?
+    let isRecording: Bool
+    let width: CGFloat
+    let onRecord: () -> Void
+
+    var body: some View {
+        Menu {
+            Button("Press a Key...", action: onRecord)
+            Divider()
+            ForEach(KeyCode.presets, id: \.section) { preset in
+                Section(preset.section) {
+                    ForEach(preset.keys, id: \.code) { key in
+                        Button(key.name) { keyCode = key.code }
+                    }
+                }
+            }
+            Divider()
+            Button("None") { keyCode = nil }
+        } label: {
+            Text(label)
+                .font(.system(size: 12))
+                .lineLimit(1)
+                .foregroundStyle(keyCode == nil && !isRecording ? .tertiary : .primary)
+        }
+        .menuStyle(.borderlessButton)
+        .frame(width: width)
+        .padding(.vertical, 2)
+        .padding(.horizontal, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 5)
+                .fill(isRecording ? AnyShapeStyle(Color.accentColor.opacity(0.25))
+                                  : AnyShapeStyle(.quaternary)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .strokeBorder(
+                    isRecording ? Color.accentColor : Color(nsColor: .separatorColor),
+                    lineWidth: 1))
+    }
+
+    private var label: String {
+        if isRecording { return "Press a key" }
+        return keyCode.map(KeyCode.shortName) ?? "None"
     }
 }
 
