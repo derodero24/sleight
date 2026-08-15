@@ -1,8 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Hosts the settings view. Sized to its content, so the window is exactly as
-/// large as the list needs and no larger.
+/// Hosts the settings view at a fixed size.
 final class SettingsWindow {
     private var window: NSWindow?
     private let store: SettingsStore
@@ -13,18 +12,27 @@ final class SettingsWindow {
 
     func show() {
         if let window {
+            // Only start a new undoable session if this is not already open;
+            // re-showing a visible window must not discard what Cancel goes back to.
+            if !window.isVisible { store.beginEditing() }
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
+        store.beginEditing()
 
-        let controller = NSHostingController(rootView: SettingsView(store: store))
-        // Without this the window keeps whatever height it had when it opened, so
-        // adding a key appends a row that is cropped off the bottom and looks like
-        // the button did nothing.
-        controller.sizingOptions = [.preferredContentSize]
+        let view = SettingsView(
+            store: store,
+            onCancel: { [weak self] in
+                self?.store.cancel()
+                self?.close()
+            },
+            onDone: { [weak self] in
+                self?.store.commit()
+                self?.close()
+            })
 
-        let window = NSWindow(contentViewController: controller)
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = "Sleight"
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
@@ -35,12 +43,19 @@ final class SettingsWindow {
         NSApp.activate(ignoringOtherApps: true)
         self.window = window
 
-        // Leaving a field armed after the window closes would swallow the next
-        // key pressed anywhere on the system.
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in
-            self?.store.recording = nil
+            guard let self else { return }
+            // Leaving a field armed would swallow the next key pressed anywhere.
+            self.store.recording = nil
+            // Closing the window keeps the edits, since they are already in effect
+            // and have been all along. Discarding them is what Cancel is for.
+            self.store.commit()
         }
+    }
+
+    private func close() {
+        window?.close()
     }
 }

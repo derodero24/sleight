@@ -88,7 +88,12 @@ the active keys and offers Settings, Pause, and Open at Login.
 
 Settings is one list. Each row is a key, what a tap sends, and what a hold turns
 it into. **To set a key you click the field and press it** - no key codes to look
-up. Changes take effect as you make them, so there is no Save button.
+up.
+
+Edits reach the running engine straight away, so a binding can be felt before
+committing to it, but nothing is written to disk until Done. Cancel puts back
+whatever the window opened with. A wrong binding can make the keyboard awkward to
+use, which is the worst moment to be retyping old values by hand.
 
 Recording reads from the event tap rather than from the view. That is what makes
 it possible to bind Caps Lock and the modifiers at all, since those never produce

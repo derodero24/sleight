@@ -38,11 +38,18 @@ enum RecordTarget: Equatable {
 
 /// Owns the editable copy of the config and pushes changes to the live engine.
 ///
-/// Edits apply as you make them. There is no Save button because there is nothing
-/// a Save button would protect you from: the effect of a binding is immediate and
-/// obvious, and getting it wrong is undone by changing it back.
+/// Edits reach the running engine as they are made, so a binding can be felt
+/// before committing to it, but nothing is written to disk until Done. Cancel
+/// restores the bindings the window opened with. That split matters here more
+/// than in most settings windows: a wrong binding can make the keyboard awkward
+/// to use, and being able to back out without retyping the old values by hand is
+/// worth the two buttons.
 final class SettingsStore: ObservableObject {
     @Published var bindings: [EditableBinding]
+
+    /// What Cancel goes back to. Taken when the window opens rather than at init,
+    /// so each visit to the window is its own undoable unit.
+    private var snapshot: [EditableBinding] = []
 
     /// While recording, the engine is paused so the key being captured does not
     /// trigger whatever it is currently bound to. This is also why capture reads
@@ -101,15 +108,31 @@ final class SettingsStore: ObservableObject {
         change(&bindings[index])
     }
 
-    /// Writes to disk and swaps the engine. Failing to write is worth saying out
+    // MARK: - Editing session
+
+    func beginEditing() {
+        snapshot = bindings
+    }
+
+    /// Keeps the edits and writes them out. Failing to write is worth saying out
     /// loud, since the alternative is settings that quietly vanish on restart.
-    private func apply() {
-        let config = self.config
+    func commit() {
         do {
             try config.write()
         } catch {
             Log.warn("could not save settings: \(error.localizedDescription)")
         }
+    }
+
+    /// Puts back what the window opened with, engine included.
+    func cancel() {
+        guard bindings != snapshot else { return }
+        bindings = snapshot
+        Log.info("settings reverted")
+    }
+
+    /// Pushes the current edits to the running engine without touching disk.
+    private func apply() {
         controller?.reload(with: TapHoldEngine(config: config))
     }
 }

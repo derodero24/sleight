@@ -32,6 +32,7 @@ enum SelfTest {
         modifierKeyHoldActsAsModifier()
         pausingPassesEverythingThrough(config)
         unchangedHoldKeepsTheKeyWorking()
+        cancellingSettingsRestoresThePreviousKeys()
 
         if failures == 0 {
             print("\nall checks passed")
@@ -166,6 +167,30 @@ enum SelfTest {
         _ = combo.keyUp(0x08)
         _ = combo.modifierUp(leftCommand)
         expect(combo.synthesized.isEmpty, "Command-C does not emit Eisu")
+    }
+
+    /// Cancel has to put back everything the window opened with, including keys
+    /// that were removed. Getting a binding wrong can make the keyboard awkward to
+    /// use, which is exactly when retyping the old values by hand is hardest.
+    private static func cancellingSettingsRestoresThePreviousKeys() {
+        let store = SettingsStore(
+            config: Config(bindings: [
+                KeyBinding(keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
+            ]),
+            controller: nil)
+        store.beginEditing()
+
+        let original = store.bindings
+        store.add()
+        store.remove(original[0].id)
+        expect(store.bindings.count == 1, "editing changed the list")
+        expect(store.config.bindings.isEmpty, "and left nothing usable configured")
+
+        store.cancel()
+        expect(store.bindings == original, "cancel puts the original keys back")
+        expect(
+            store.config.bindings.first?.keyCode == KeyCode.capsLock,
+            "including the one that was removed")
     }
 
     // MARK: - Harness

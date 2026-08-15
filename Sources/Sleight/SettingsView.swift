@@ -4,8 +4,9 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var store: SettingsStore
 
-    /// Row content plus its vertical padding and the divider under it.
-    private static let rowHeight: CGFloat = 39
+    /// What Cancel and Done report back to.
+    var onCancel: () -> Void = {}
+    var onDone: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -15,7 +16,9 @@ struct SettingsView: View {
             Divider()
             footer
         }
-        .frame(width: 460)
+        // Fixed rather than sized to content: a window that grows and shrinks as
+        // keys are added moves its own buttons around under the pointer.
+        .frame(width: 470, height: 340)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -33,31 +36,27 @@ struct SettingsView: View {
     }
 
     private var rows: some View {
-        Group {
+        ScrollView {
             if store.bindings.isEmpty {
-                Text("No keys yet.")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 36)
+                Text("No keys yet. Add one below.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 60)
             } else {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach($store.bindings) { $binding in
-                            BindingRow(binding: $binding, store: store)
-                            Divider().opacity(0.4)
-                        }
+                VStack(spacing: 0) {
+                    ForEach($store.bindings) { $binding in
+                        BindingRow(binding: $binding, store: store)
+                        Divider().opacity(0.4)
                     }
                 }
-                // An explicit height rather than a maximum: a ScrollView given a
-                // range takes the whole thing, which leaves a short list floating
-                // in empty space.
-                .frame(height: min(CGFloat(store.bindings.count) * Self.rowHeight, 312))
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 12) {
             Button {
                 store.add()
             } label: {
@@ -65,20 +64,21 @@ struct SettingsView: View {
             }
             .buttonStyle(.link)
 
-            Spacer()
-
             if store.recording != nil {
                 Text("Press any key")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-            } else {
-                Text("Changes apply immediately")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
             }
+
+            Spacer()
+
+            Button("Cancel", action: onCancel)
+                .keyboardShortcut(.cancelAction)
+            Button("Done", action: onDone)
+                .keyboardShortcut(.defaultAction)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
     }
 }
 
