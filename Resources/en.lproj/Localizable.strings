@@ -65,3 +65,7 @@
 "key.rightControl" = "Right ⌃";
 "key.leftShift" = "Left ⇧";
 "key.rightShift" = "Right ⇧";
+"row.duplicate" = "This key is already set above. Only the first one takes effect.";
+"row.incomplete" = "Set a tap key or a hold behaviour, or this key does nothing.";
+"Finish the highlighted key first" = "Finish the highlighted key first";
+"key.function" = "Fn";

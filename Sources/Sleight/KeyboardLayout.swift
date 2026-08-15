@@ -28,11 +28,16 @@ enum KeyboardLayout: String {
             keyCode: KeyCode.capsLock, tapKeyCode: KeyCode.escape, hold: .control)
 
         switch self {
-        case .ansi, .iso:
+        case .ansi:
             return [
                 capsLock,
                 KeyBinding(keyCode: KeyCode.rightOption, tapKeyCode: nil, hold: .hyper),
             ]
+        case .iso:
+            // No Right Option here. macOS has no separate AltGr, so on European
+            // layouts the right Option key is how you type @ \ { } [ ] | ~ EUR,
+            // and taking it for a hyper key would break that on first run.
+            return [capsLock]
         case .jis:
             return [
                 capsLock,

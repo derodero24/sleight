@@ -44,6 +44,7 @@ enum KeyCode {
         0x3C: "Right Shift",
         0x3D: "Right Option",
         0x3E: "Right Control",
+        0x3F: "Fn / Globe",
     ]
 
     static func describe(_ code: Int64) -> String {
@@ -75,6 +76,7 @@ enum KeyCode {
         0x3C: "key.rightShift",
         0x3D: "key.rightOption",
         0x3E: "key.rightControl",
+        0x3F: "key.function",
     ]
 
     static func shortName(_ code: Int64) -> String {
@@ -105,7 +107,7 @@ enum KeyCode {
     /// and Caps Lock is awkward to press on purpose. A list costs nothing and
     /// removes both problems.
     static let sourcePresets: [(section: String, codes: [Int64])] = [
-        ("preset.modifiers", [0x39, 0x37, 0x36, 0x3A, 0x3D, 0x3B, 0x3E]),
+        ("preset.modifiers", [0x39, 0x37, 0x36, 0x3A, 0x3D, 0x3B, 0x3E, 0x38, 0x3C]),
         ("preset.common", [escape, tab, space, returnKey, 0x33]),
         ("preset.inputSource", [eisu, kana]),
     ]
@@ -126,9 +128,16 @@ enum KeyCode {
         0x3D: 0x0000_0040,  // Right Option
         0x3E: 0x0000_2000,  // Right Control
         0x39: 0x0001_0000,  // Caps Lock (maskAlphaShift)
+        0x3F: 0x0080_0000,  // Fn / Globe (NX_SECONDARYFNMASK)
     ]
 
     static func isModifier(_ code: Int64) -> Bool { modifierBits[code] != nil }
+
+    /// Keys that only ever arrive as `flagsChanged`. Binding one that is not in
+    /// `modifierBits` would swallow it for ever, so these are worth naming.
+    static func reportsAsFlagsOnly(_ code: Int64) -> Bool {
+        (0x36...0x3F).contains(code)
+    }
 
     /// True when this `flagsChanged` event is the key going down.
     static func isPress(code: Int64, flags: CGEventFlags) -> Bool {

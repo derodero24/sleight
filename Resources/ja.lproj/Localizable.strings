@@ -65,3 +65,7 @@
 "key.rightControl" = "右 ⌃";
 "key.leftShift" = "左 ⇧";
 "key.rightShift" = "右 ⇧";
+"row.duplicate" = "このキーは上ですでに設定されています。最初の行だけが有効です。";
+"row.incomplete" = "単押しか長押しのどちらかを設定してください。空のままだと何も起きません。";
+"Finish the highlighted key first" = "印の付いた行を先に設定してください";
+"key.function" = "Fn";
