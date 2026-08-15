@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// One physical key given two jobs.
@@ -8,6 +9,11 @@ struct KeyBinding: Codable {
     var tapKeyCode: Int64?
     /// What holding it turns the key into. Omit to make the key tap-only.
     var hold: HoldBehavior?
+
+    /// A binding with neither half does nothing but swallow the key, which is the
+    /// worst outcome this app has: the key stops working and nothing says why.
+    /// The settings window cannot produce one, but a hand-edited file can.
+    var isUsable: Bool { tapKeyCode != nil || hold != nil }
 
     /// Only the halves that are actually configured, so a hold-only key does not
     /// advertise a tap that does nothing.
@@ -37,23 +43,59 @@ struct Config: Codable {
 
     /// Falls back to the default rather than failing: a config typo should not
     /// leave the user with a keyboard that does nothing.
+    ///
+    /// JSON decoding is all or nothing, so one bad value discards the whole file.
+    /// The original is moved aside first, because the settings window then opens
+    /// showing defaults and the next Save would otherwise overwrite hand-written
+    /// bindings that were only one typo away from working.
     static func load() -> Config {
         guard let data = try? Data(contentsOf: url) else { return .default }
         do {
-            return try JSONDecoder().decode(Config.self, from: data)
+            return try JSONDecoder().decode(Config.self, from: data).validated()
         } catch {
-            Log.warn("config at \(url.path) is unreadable (\(error)); using defaults")
+            Log.warn("config at \(url.path) is unreadable: \(error)")
+            let backup = url.appendingPathExtension("invalid")
+            try? FileManager.default.removeItem(at: backup)
+            do {
+                try FileManager.default.moveItem(at: url, to: backup)
+                Log.warn("kept a copy at \(backup.path); using defaults")
+            } catch {
+                Log.warn("could not preserve it (\(error)); using defaults")
+            }
             return .default
         }
     }
 
+    /// Drops bindings that would crash or silently break the keyboard.
+    ///
+    /// A key code out of `CGKeyCode` range is the sharp one: converting it traps,
+    /// so a mistyped number used to kill the process the moment that key was
+    /// tapped, leaving no menu bar item and no explanation.
+    private func validated() -> Config {
+        let range = Int64(CGKeyCode.min)...Int64(CGKeyCode.max)
+        return Config(bindings: bindings.filter { binding in
+            guard range.contains(binding.keyCode) else {
+                Log.warn("ignoring binding: key code \(binding.keyCode) is out of range")
+                return false
+            }
+            if let tap = binding.tapKeyCode, !range.contains(tap) {
+                Log.warn("ignoring binding for \(KeyCode.describe(binding.keyCode)): "
+                    + "tap key code \(tap) is out of range")
+                return false
+            }
+            return true
+        })
+    }
+
+    /// Atomic, so a crash or a full disk cannot leave a half-written file behind -
+    /// which would decode as corrupt on the next launch and lose everything.
     func write() throws {
         let url = Config.url
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(self).write(to: url)
+        try encoder.encode(self).write(to: url, options: .atomic)
     }
 
     func writeIfAbsent() {
@@ -76,23 +118,32 @@ enum Log {
     static let fileURL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Logs/Sleight.log")
 
-    private static let handle: FileHandle? = {
+    private static let sizeLimit = 512 * 1024
+
+    /// Opened with O_APPEND, and trimmed in place rather than replaced.
+    ///
+    /// `createFile` allocates a new inode, which leaves any other process that
+    /// already has the log open writing into a file nobody can find. That is not
+    /// hypothetical: a second launch logs "already running" before it exits, and
+    /// doing so would have orphaned the log of the instance doing the work.
+    /// O_APPEND also makes interleaved writes from two processes safe.
+    private static let descriptor: Int32? = {
         let url = fileURL
-        let manager = FileManager.default
-        try? manager.createDirectory(
+        try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
 
-        // Appending, not truncating. A launch that finds the app already running
-        // is still a process that writes here, and truncating on open meant that
-        // second process wiped the log of the instance actually doing the work.
-        let size = (try? manager.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
-        if !manager.fileExists(atPath: url.path) || (size ?? 0) > 512 * 1024 {
-            manager.createFile(atPath: url.path, contents: nil)
-        }
-        let handle = try? FileHandle(forWritingTo: url)
-        try? handle?.seekToEnd()
-        return handle
+        let fd = open(url.path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
+        return fd >= 0 ? fd : nil
     }()
+
+    /// Keeps the file bounded during a session, not just at launch. Verbose mode
+    /// writes several lines per keystroke, so a check that only ran once would let
+    /// a long-lived menu bar process grow the log without limit.
+    private static func trimIfHuge(_ fd: Int32) {
+        var info = stat()
+        guard fstat(fd, &info) == 0, info.st_size > sizeLimit else { return }
+        ftruncate(fd, 0)
+    }
 
     private static let formatter: DateFormatter = {
         let f = DateFormatter()
@@ -101,9 +152,16 @@ enum Log {
     }()
 
     private static func emit(_ level: String, _ message: String) {
-        let line = Data("[\(formatter.string(from: Date()))] \(level) \(message)\n".utf8)
-        FileHandle.standardError.write(line)
-        handle?.write(line)
+        let line = "[\(formatter.string(from: Date()))] \(level) \(message)\n"
+        FileHandle.standardError.write(Data(line.utf8))
+
+        guard let fd = descriptor else { return }
+        trimIfHuge(fd)
+        // write(2) rather than FileHandle.write, which raises an uncatchable
+        // exception when the disk is full. Losing a log line is not worth a crash.
+        _ = line.withCString { pointer in
+            Darwin.write(fd, pointer, strlen(pointer))
+        }
     }
 
     static func info(_ message: String) { emit("INFO ", message) }
