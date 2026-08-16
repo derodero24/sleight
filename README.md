@@ -1,5 +1,7 @@
 # Sleight
 
+[![CI](https://github.com/derodero24/sleight/actions/workflows/ci.yml/badge.svg)](https://github.com/derodero24/sleight/actions/workflows/ci.yml)
+
 Tap/hold key remapping for macOS, without a driver.
 
 Give a key two jobs: tap it to send one key, hold it to become a modifier.
@@ -52,7 +54,12 @@ The driver-free alternatives each cover one slice of the problem:
 | [hrm](https://github.com/wontaeyang/hrm) | none | yes | home row only |
 | [BC64Keys](https://github.com/badcode64/BC64Keys) | none | no | all |
 | Hyperkey | none | hyper only | Caps Lock and modifiers |
-| Sleight | none | yes | any key |
+| Sleight | none | yes | all |
+
+No column here is one Sleight wins on its own; every cell in its row appears
+somewhere above it. The claim is the row, not any cell: the tools without a
+driver each give something up, and the ones that give nothing up all want
+DriverKit.
 
 The column the table does not have is the one a driver wins: Karabiner works in
 secure input fields, in games that read HID directly, and inside VMs. Sleight
