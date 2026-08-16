@@ -98,9 +98,9 @@ final class StatusItem: NSObject, NSMenuDelegate {
         updateIcon()
     }
 
-    /// A tapping hand rather than a keyboard glyph. Menu bars are full of small
-    /// grey key shapes and they are impossible to tell apart at a glance; this one
-    /// also happens to be what the app does.
+    /// The app's own mark, so the menu bar and the Dock agree. The two exception
+    /// states borrow system symbols instead, because looking unlike the normal
+    /// state is the entire job there.
     private func updateIcon() {
         guard let button = item.button else { return }
         guard controller.isRunning else {
@@ -126,16 +126,10 @@ final class StatusItem: NSObject, NSMenuDelegate {
             button.appearsDisabled = false
             return
         }
-        let name = controller.isPaused ? "hand.tap" : "hand.tap.fill"
-        if let image = NSImage(systemSymbolName: name, accessibilityDescription: L("menu.active")) {
-            image.isTemplate = true
-            button.image = image
-            button.title = ""
-        } else {
-            // Older systems without the symbol still need something clickable.
-            button.image = nil
-            button.title = controller.isPaused ? "S" : "S*"
-        }
+        button.image = MenuBarIcon.mark
+        button.image?.accessibilityDescription = L(
+            controller.isPaused ? "menu.paused" : "menu.active")
+        button.title = ""
         button.appearsDisabled = controller.isPaused
     }
 
@@ -165,9 +159,10 @@ final class StatusItem: NSObject, NSMenuDelegate {
             return
         }
 
-        menu.addItem(header(L(controller.isPaused ? "menu.paused" : "menu.active")))
-
-        menu.addItem(.separator())
+        // No heading in the ordinary case. It restated what the icon and the
+        // Pause item already say, and a disabled menu item is drawn grey enough
+        // to be hard to read while still taking up the top of the menu. The two
+        // exception states keep theirs, since nothing else explains them.
         add(to: menu, L("menu.settings"), #selector(showSettings), key: ",")
         add(to: menu, L(controller.isPaused ? "menu.resume" : "menu.pause"), #selector(togglePause), key: "p")
 
