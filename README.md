@@ -272,15 +272,26 @@ paths are exercised by hand with `--test-kill-tap`, since they need a real tap.
 ### Before this can be distributed
 
 Builds are signed with a self-signed certificate, which is fine locally and
-useless anywhere else: Gatekeeper will refuse it on another Mac, and it cannot be
-notarized. Moving to a Developer ID is the blocker for releasing anything, and
-an unsigned build cannot keep Accessibility permission across updates.
+useless anywhere else: Gatekeeper refuses it on another Mac and it cannot be
+notarized. An Apple Developer ID is the one remaining blocker, and it is a
+membership rather than a piece of work.
 
-`Scripts/install.sh` already takes a `SIGN_ID`, so the mechanism is in place. What
-is left is the Apple Developer Program membership and notarization; the hardened
-runtime is already on (`bundle.sh` passes `--options runtime`). Note that changing the signing identity changes the designated
-requirement, so Accessibility permission has to be granted once more after the
-switch.
+Everything around it is ready. `Scripts/release.sh` builds, verifies, submits to
+notarization, staples the ticket and reports what a downloader will see:
+
+```
+SIGN_ID="Developer ID Application: Name (TEAMID)" ./Scripts/release.sh
+```
+
+It refuses to submit anything it can already tell will be rejected, since
+notarytool's account of why is slow to arrive and hard to read. The hardened
+runtime is on, and the secure timestamp notarization requires now follows the
+identity: self-signed builds cannot get one, so asking for it there would break
+local installs.
+
+Note that changing signing identity changes the designated requirement, so
+Accessibility permission has to be granted once more after the switch. It then
+stays granted across rebuilds, which an ad-hoc signature never manages.
 
 ## Prior art
 

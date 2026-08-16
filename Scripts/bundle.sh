@@ -63,9 +63,19 @@ PLIST
 # certificate, so that Gatekeeper accepts it on someone else's Mac. The tap
 # itself needs Accessibility, which is granted per app rather than by signature.
 SIGN_ID="${SIGN_ID:--}"
+
+# Notarization rejects a signature without a secure timestamp, and the failure it
+# reports does not mention timestamps. Ad-hoc and self-signed identities cannot
+# get one - Apple's timestamp server only answers for real certificates - so the
+# flag has to follow the identity rather than being fixed either way.
+case "$SIGN_ID" in
+    -|*"Development"*) TIMESTAMP="--timestamp=none" ;;
+    *) TIMESTAMP="--timestamp" ;;
+esac
+
 # No fallback: every shipping codesign supports --options runtime, so a retry
 # without it could only hide the real error and quietly drop hardened runtime.
-codesign --force --sign "$SIGN_ID" --options runtime --timestamp=none "$APP"
+codesign --force --sign "$SIGN_ID" --options runtime $TIMESTAMP "$APP"
 
 echo "built  $APP"
 codesign -dv "$APP" 2>&1 | grep -E 'Identifier|Signature|TeamIdentifier' || true
