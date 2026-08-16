@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Pinned rather than macos-latest: the runner label moves without notice, and
+    # a keyboard utility that only builds on one macOS version should fail here
+    # rather than in someone's download.
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: swift --version && sw_vers
+
+      - name: Build
+        run: swift build -c release
+
+      # The state machine, with no event tap and no permissions. Every failure
+      # this app has had in the wild was one of these cases.
+      - name: State machine
+        run: .build/release/Sleight --selftest
+
+      # Translations are not the length of the English they came from, and a
+      # string that overflows its control is truncated silently rather than
+      # reported.
+      - name: Translations fit their controls
+        run: swift Scripts/check-layout.swift
+
+      # Packaging breaks independently of the code: a missing Info.plist key or
+      # an unsigned bundle still compiles perfectly.
+      - name: Package
+        run: ./Scripts/bundle.sh
+
+      - name: Bundle is signed and complete
+        run: |
+          codesign --verify --strict --verbose=2 build/Sleight.app
+          test -f build/Sleight.app/Contents/Resources/Sleight.icns
+          test -d build/Sleight.app/Contents/Resources/ja.lproj
+          test -d build/Sleight.app/Contents/Resources/en.lproj
